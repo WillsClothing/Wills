@@ -44,9 +44,11 @@ function product(
 
 export const demoProducts: Product[] = [
   product('demo-1', 'Classic Black Tee', 2500, 'T-Shirts', '#111111', { S: 5, M: 8, L: 3, XL: 0 }),
-  product('demo-2', 'Essential White Tee', 2500, 'T-Shirts', '#f2f2f2', { S: 2, M: 0, L: 6, XL: 4 }),
-  product('demo-3', 'Oversized Hoodie', 6900, 'Hoodies', '#d9d9d9', { M: 4, L: 4, XL: 2 }),
-  product('demo-4', 'Monochrome Shirt', 4800, 'Shirts', '#111111', { S: 0, M: 0, L: 0 }, 'sold_out'),
+  product('demo-2', 'Essential White Tee', 2200, 'T-Shirts', '#f2f2f2', { S: 2, M: 0, L: 6, XL: 4 }),
+  product('demo-3', 'Gold Line Tee', 3200, 'T-Shirts', '#d9d0be', { M: 4, L: 4, XL: 2 }),
+  product('demo-4', 'Everyday Black Shorts', 2800, 'Shorts', '#1c1c1c', { S: 3, M: 5, L: 2 }),
+  product('demo-5', 'Linen Ivory Shorts', 3900, 'Shorts', '#ece7dc', { M: 2, L: 3, XL: 1 }),
+  product('demo-6', 'Monochrome Tee', 1800, 'T-Shirts', '#111111', { S: 0, M: 0, L: 0 }, 'sold_out'),
 ];
 
 export const demoSettings: StoreSettings = {
