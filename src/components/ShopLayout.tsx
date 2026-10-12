@@ -5,6 +5,7 @@ import { isConfigured } from '../lib/supabase';
 import { whatsappLink } from '../lib/whatsapp';
 import Logo from './Logo';
 import WhatsAppIcon from './WhatsAppIcon';
+import WillsBot from './WillsBot';
 
 export default function ShopLayout() {
   const { count } = useCart();
@@ -79,6 +80,7 @@ export default function ShopLayout() {
           <WhatsAppIcon size={28} />
         </a>
       )}
+      <WillsBot />
     </>
   );
 }
