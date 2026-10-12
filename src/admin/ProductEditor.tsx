@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteImage, fetchProduct, saveProduct, uploadImage, type SizeInput } from '../lib/api';
+import { CATEGORIES } from '../lib/catalog';
 import { sortSizes } from '../lib/format';
 import type { ProductStatus } from '../lib/types';
 import { useAdmin } from './AdminLayout';
@@ -24,7 +25,7 @@ const EMPTY: FormState = {
   name: '',
   description: '',
   price: '',
-  category: '',
+  category: CATEGORIES[0],
   status: 'available',
   sort_order: '0',
   images: [],
@@ -138,6 +139,7 @@ export default function ProductEditor() {
     const labels = form.sizes.map((s) => s.size.trim().toLowerCase());
     if (!form.name.trim()) return setError('Please enter a product name.');
     if (!Number.isFinite(price) || price < 0) return setError('Please enter a valid price.');
+    if (!form.category) return setError('Choose a product type.');
     if (labels.some((l) => !l)) return setError('Every size needs a name (e.g. M), or remove the empty row.');
     if (new Set(labels).size !== labels.length) return setError('Each size can only be listed once.');
     if (form.sizes.some((s) => !Number.isInteger(s.stock) || s.stock < 0))
@@ -186,8 +188,17 @@ export default function ProductEditor() {
             <input className="input" type="number" min="0" step="0.01" inputMode="decimal" value={form.price} onChange={(e) => set('price', e.target.value)} required />
           </label>
           <label className="field">
-            <span>Category</span>
-            <input className="input" value={form.category} onChange={(e) => set('category', e.target.value)} placeholder="e.g. T-Shirts" />
+            <span>Product type</span>
+            <select className="input" value={form.category} onChange={(e) => set('category', e.target.value)} required>
+              <option value="" disabled>
+                Choose a product type
+              </option>
+              {[...CATEGORIES, ...(form.category && !CATEGORIES.includes(form.category) ? [form.category] : [])].map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="field">
             <span>Status</span>

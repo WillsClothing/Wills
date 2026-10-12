@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatPrice, totalStock } from '../lib/format';
+import { formatPrice, sortSizes, totalStock } from '../lib/format';
 import type { Product } from '../lib/types';
 
 export function isSoldOut(p: Product): boolean {
@@ -8,20 +8,23 @@ export function isSoldOut(p: Product): boolean {
 
 export default function ProductCard({ product, currency }: { product: Product; currency: string }) {
   const soldOut = isSoldOut(product);
-  const cover = product.images[0];
+  const [cover, hover] = product.images;
+  const sizes = sortSizes(product.product_sizes).filter((s) => s.stock > 0);
   return (
-    <Link to={`/product/${product.id}`} className="card">
+    <Link to={`/product/${product.id}`} className={`card ${hover ? 'has-hover' : ''}`}>
       <div className="card-img">
-        {cover ? (
-          <img src={cover} alt={product.name} loading="lazy" />
-        ) : (
-          <div className="img-placeholder">No image</div>
-        )}
+        {cover ? <img src={cover} alt={product.name} loading="lazy" /> : <div className="img-placeholder">No image</div>}
+        {hover && <img className="card-img-alt" src={hover} alt="" loading="lazy" />}
         {soldOut && <span className="tag tag-dark">Sold out</span>}
+        <span className="card-cta">{soldOut ? 'View' : 'View details'}</span>
       </div>
       <div className="card-body">
+        {product.category && <p className="card-type">{product.category}</p>}
         <p className="card-name">{product.name}</p>
-        <div className="card-price">{formatPrice(product.price, currency)}</div>
+        <div className="card-meta">
+          <span className="card-price">{formatPrice(product.price, currency)}</span>
+          {!soldOut && sizes.length > 0 && <span className="card-sizes">{sizes.map((s) => s.size).join(' · ')}</span>}
+        </div>
       </div>
     </Link>
   );

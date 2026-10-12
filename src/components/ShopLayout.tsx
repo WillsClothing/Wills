@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCart } from '../lib/cart';
 import { useStore } from '../lib/store';
 import { isConfigured } from '../lib/supabase';
@@ -12,6 +13,15 @@ export default function ShopLayout() {
   const { settings } = useStore();
   const hasWhatsApp = Boolean(settings.whatsapp_number);
   const inquiry = `Hello ${settings.store_name}, I have a question.`;
+  const { pathname } = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <>
@@ -21,7 +31,7 @@ export default function ShopLayout() {
         </div>
       )}
       <div className="announcement">Order easily on WhatsApp · Cash on Delivery available</div>
-      <header className="header">
+      <header className={`header ${scrolled ? 'scrolled' : ''}`}>
         <div className="container">
           <Link to="/" className="logo" aria-label={settings.store_name}>
             <Logo />
@@ -42,7 +52,7 @@ export default function ShopLayout() {
         </div>
       </header>
 
-      <main>
+      <main key={pathname} className="page-fade">
         <Outlet />
       </main>
 
