@@ -99,7 +99,7 @@ export default function CartPage() {
                     </button>
                   </div>
                 </div>
-                <div className="line-total" style={{ fontWeight: 600 }}>
+                <div className="line-total" style={{ fontWeight: 500 }}>
                   {formatPrice(item.lineTotal, settings.currency)}
                 </div>
               </div>
@@ -132,7 +132,7 @@ export default function CartPage() {
           </div>
 
           <div>
-            <p className="small caps" style={{ fontWeight: 600, marginBottom: 8 }}>
+            <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
               Payment method
             </p>
             <div className="pay-options">
@@ -161,7 +161,7 @@ export default function CartPage() {
           </div>
 
           <div className="stack">
-            <p className="small caps" style={{ fontWeight: 600, margin: 0 }}>
+            <p className="small caps" style={{ fontWeight: 500, margin: 0 }}>
               Delivery details
             </p>
             <label className="field">

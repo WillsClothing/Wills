@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useOutletContext } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { checkIsAdmin, signIn, signOut } from '../lib/api';
+import Logo from '../components/Logo';
 import { isConfigured, supabase } from '../lib/supabase';
 
 export interface AdminContext {
@@ -71,8 +72,8 @@ export default function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="admin-side">
-        <Link to="/admin" className="logo">
-          Wills Admin
+        <Link to="/admin" className="logo" aria-label="Wills admin">
+          <Logo />
         </Link>
         <NavLink to="/admin" end>
           Products
@@ -123,9 +124,9 @@ function Login() {
 
   return (
     <div className="login-wrap">
+      <Logo className="login-logo" />
       <form className="login-card stack" onSubmit={submit}>
-        <div className="logo center">Wills</div>
-        <p className="small caps center muted">Admin sign in</p>
+        <h1 className="center" style={{ fontSize: '1.8rem', margin: 0 }}>Admin sign in</h1>
         <label className="field">
           <span>Email</span>
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />

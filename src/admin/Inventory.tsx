@@ -104,7 +104,7 @@ export default function Inventory() {
                     )}
                   </td>
                   <td>{s.size}</td>
-                  <td className={s.stock === 0 ? 'low' : ''} style={{ fontWeight: 700 }}>
+                  <td className={s.stock === 0 ? 'low' : ''} style={{ fontWeight: 500 }}>
                     {s.stock}
                   </td>
                   <td>
@@ -158,7 +158,7 @@ export default function Inventory() {
                   </td>
                   <td>{l.product_name}</td>
                   <td>{l.size}</td>
-                  <td style={{ fontWeight: 700 }}>{l.change > 0 ? `+${l.change}` : l.change}</td>
+                  <td style={{ fontWeight: 500 }}>{l.change > 0 ? `+${l.change}` : l.change}</td>
                   <td>{l.new_stock}</td>
                   <td className="small">{l.reason}</td>
                 </tr>
