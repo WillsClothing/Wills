@@ -49,6 +49,14 @@ Every stock change is recorded in an inventory log (who, when, how much, why), v
 
 Netlify works the same way (`netlify.toml` is included): import the repo and add the same two environment variables.
 
+### Test site on GitHub Pages (optional)
+
+The included workflow (`.github/workflows/deploy-pages.yml`) publishes the shop to `https://<owner>.github.io/<repo>/` on every push to `main`, which is handy for testing before going live.
+
+1. Repository **Settings → Secrets and variables → Actions → New repository secret**: add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+2. **Settings → Pages → Build and deployment → Source**: choose **GitHub Actions**.
+3. **Actions → Deploy to GitHub Pages → Run workflow** (or push to `main`).
+
 ### 3. Store settings
 
 Sign in at `/admin`, open **Settings** and fill in:

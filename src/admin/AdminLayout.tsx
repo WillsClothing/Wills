@@ -79,7 +79,7 @@ export default function AdminLayout() {
         </NavLink>
         <NavLink to="/admin/inventory">Inventory</NavLink>
         <NavLink to="/admin/settings">Settings</NavLink>
-        <a href="/" target="_blank" rel="noreferrer">
+        <a href={import.meta.env.BASE_URL} target="_blank" rel="noreferrer">
           View shop ↗
         </a>
         <div className="side-foot stack">
