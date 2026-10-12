@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Logo from '../components/Logo';
 import ProductCard from '../components/ProductCard';
 import { useStore } from '../lib/store';
 
@@ -16,13 +17,36 @@ export default function Shop() {
   return (
     <>
       <section className="hero">
+        <div className="hero-mist" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="container">
-          <h1>{settings.store_name}</h1>
-          <p>Timeless essentials in black and white. Pick your size, add to cart and order on WhatsApp.</p>
+          <Logo className="hero-logo" />
+          <p className="eyebrow">New collection</p>
+          <h1>
+            <span className="line">
+              <span>Wear it</span>
+            </span>
+            <span className="line">
+              <span>
+                your <em>way</em>
+              </span>
+            </span>
+          </h1>
+          <p>Pick your size, add to cart and order on WhatsApp. Cash on Delivery or bank transfer.</p>
+          <a href="#collection" className="btn btn-gold">
+            Shop the collection
+          </a>
         </div>
       </section>
 
-      <div className="container page" style={{ paddingTop: 0 }}>
+      <div className="container page" id="collection" style={{ paddingTop: 0 }}>
+        <div className="section-title">
+          <p className="eyebrow">{settings.store_name}</p>
+          <h2>The collection</h2>
+        </div>
         {categories.length > 2 && (
           <div className="filters" role="tablist">
             {categories.map((c) => (

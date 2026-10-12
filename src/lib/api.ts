@@ -39,7 +39,9 @@ export async function fetchSettings(): Promise<StoreSettings> {
   if (!isConfigured) return demoSettings;
   const { data, error } = await db().from('store_settings').select('*').eq('id', 1).maybeSingle();
   if (error) throw error;
-  return (data as StoreSettings) ?? demoSettings;
+  const settings = (data as StoreSettings) ?? demoSettings;
+  // Until a number is saved in Admin → Settings, orders go to the store's main WhatsApp.
+  return { ...settings, whatsapp_number: settings.whatsapp_number || demoSettings.whatsapp_number };
 }
 
 /** Calls `onChange` whenever products, sizes/stock or settings change in the database. */

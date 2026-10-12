@@ -3,6 +3,7 @@ import { useCart } from '../lib/cart';
 import { useStore } from '../lib/store';
 import { isConfigured } from '../lib/supabase';
 import { whatsappLink } from '../lib/whatsapp';
+import Logo from './Logo';
 import WhatsAppIcon from './WhatsAppIcon';
 
 export default function ShopLayout() {
@@ -21,8 +22,8 @@ export default function ShopLayout() {
       <div className="announcement">Order easily on WhatsApp · Cash on Delivery available</div>
       <header className="header">
         <div className="container">
-          <Link to="/" className="logo">
-            Wills
+          <Link to="/" className="logo" aria-label={settings.store_name}>
+            <Logo />
           </Link>
           <nav className="nav">
             <NavLink to="/" end>
@@ -46,7 +47,9 @@ export default function ShopLayout() {
 
       <footer className="footer">
         <div className="container stack">
-          <div className="logo">{settings.store_name}</div>
+          <div className="logo">
+            <Logo />
+          </div>
           <p>
             Orders are confirmed on WhatsApp. Pay by Cash on Delivery or bank transfer.
             {settings.delivery_note && <><br />{settings.delivery_note}</>}

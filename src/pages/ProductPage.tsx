@@ -98,7 +98,7 @@ export default function ProductPage() {
           ) : (
             <>
               <div>
-                <p className="small caps" style={{ fontWeight: 600, marginBottom: 8 }}>
+                <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
                   Size {selected && <span className="muted">· {selected.size}</span>}
                 </p>
                 <div className="sizes">
@@ -126,7 +126,7 @@ export default function ProductPage() {
               </div>
 
               <div>
-                <p className="small caps" style={{ fontWeight: 600, marginBottom: 8 }}>
+                <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
                   Quantity
                 </p>
                 <div className="qty">

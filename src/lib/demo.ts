@@ -51,7 +51,7 @@ export const demoProducts: Product[] = [
 
 export const demoSettings: StoreSettings = {
   store_name: 'Wills Clothing',
-  whatsapp_number: '',
+  whatsapp_number: '94777543943',
   currency: 'Rs.',
   bank_details: 'Bank: YOUR BANK\nAccount name: Wills Clothing\nAccount no: 000000000\nBranch: YOUR BRANCH',
   delivery_note: '',
