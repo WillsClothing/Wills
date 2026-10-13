@@ -24,9 +24,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # base_path is "/Wills" on willsclothing.github.io and "" once a custom
+      # domain is set in Settings > Pages, so the same build works on both.
+      - id: pages
+        uses: actions/configure-pages@v5
       - run: npm run build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       # GitHub Pages has no SPA rewrites; serving index.html as the 404 page lets
