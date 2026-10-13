@@ -202,6 +202,44 @@ drop policy if exists "admins delete product images" on storage.objects;
 create policy "admins delete product images" on storage.objects
   for delete using (bucket_id = 'product-images' and public.is_admin());
 
+-- ---------- Promotions (combo offers) -------------------------------
+-- Shown on the shop only while active and inside their optional date range.
+create table if not exists public.promotions (
+  id            uuid primary key default gen_random_uuid(),
+  title         text not null,
+  description   text not null default '',
+  price         numeric(12, 2) not null check (price >= 0),   -- offer price
+  compare_price numeric(12, 2) check (compare_price >= 0),    -- usual price, shown struck through
+  product_ids   uuid[] not null default '{}',                 -- products included in the combo
+  image         text not null default '',
+  active        boolean not null default true,
+  starts_on     date,
+  ends_on       date,
+  sort_order    integer not null default 0,
+  created_at    timestamptz not null default now()
+);
+
+alter table public.promotions enable row level security;
+
+drop policy if exists "public reads live promotions" on public.promotions;
+create policy "public reads live promotions" on public.promotions
+  for select using (
+    public.is_admin()
+    or (active
+        and (starts_on is null or starts_on <= current_date)
+        and (ends_on is null or ends_on >= current_date))
+  );
+
+drop policy if exists "admins write promotions" on public.promotions;
+create policy "admins write promotions" on public.promotions
+  for all using (public.is_admin()) with check (public.is_admin());
+
+do $$
+begin
+  alter publication supabase_realtime add table public.promotions;
+exception when duplicate_object then null;
+end $$;
+
 -- ---------- Live updates on the customer portal ---------------------
 do $$
 begin

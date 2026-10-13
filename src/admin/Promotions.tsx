@@ -1,0 +1,294 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { deletePromotion, fetchAllProducts, fetchAllPromotions, isLive, savePromotion, uploadImage, type PromotionInput } from '../lib/api';
+import { formatPrice } from '../lib/format';
+import { useStore } from '../lib/store';
+import type { Product, Promotion } from '../lib/types';
+import { useAdmin } from './AdminLayout';
+
+const EMPTY: PromotionInput = {
+  title: '',
+  description: '',
+  price: 0,
+  compare_price: null,
+  product_ids: [],
+  image: '',
+  active: true,
+  starts_on: null,
+  ends_on: null,
+  sort_order: 0,
+};
+
+function statusOf(p: Promotion): string {
+  if (!p.active) return 'Off';
+  return isLive(p) ? 'Showing' : 'Scheduled / ended';
+}
+
+export default function Promotions() {
+  const { notify } = useAdmin();
+  const { settings } = useStore();
+  const [promos, setPromos] = useState<Promotion[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [editing, setEditing] = useState<string | 'new' | null>(null);
+  const [form, setForm] = useState<PromotionInput>(EMPTY);
+  const [price, setPrice] = useState('');
+  const [comparePrice, setComparePrice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const money = (n: number) => formatPrice(n, settings.currency);
+
+  const load = useCallback(async () => {
+    try {
+      const [pr, p] = await Promise.all([fetchAllPromotions(), fetchAllProducts()]);
+      setPromos(pr);
+      setProducts(p);
+      setError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not load promotions';
+      setError(
+        /promotions/.test(msg) && /exist|schema cache/i.test(msg)
+          ? 'The promotions table is not set up yet. Run supabase/promotions.sql in the Supabase SQL Editor, then refresh.'
+          : msg,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const itemsTotal = useMemo(
+    () => form.product_ids.reduce((sum, id) => sum + (products.find((p) => p.id === id)?.price ?? 0), 0),
+    [form.product_ids, products],
+  );
+
+  function open(p: Promotion | null) {
+    setEditing(p ? p.id : 'new');
+    const base = p ? { ...p } : { ...EMPTY };
+    setForm(base);
+    setPrice(p ? String(p.price) : '');
+    setComparePrice(p?.compare_price != null ? String(p.compare_price) : '');
+  }
+
+  function toggleProduct(id: string) {
+    setForm((f) => ({
+      ...f,
+      product_ids: f.product_ids.includes(id) ? f.product_ids.filter((x) => x !== id) : [...f.product_ids, id],
+    }));
+  }
+
+  async function onImage(file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const url = await uploadImage(file);
+      setForm((f) => ({ ...f, image: url }));
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const p = Number(price);
+    if (!form.title.trim()) return notify('Give the offer a name');
+    if (!price || !Number.isFinite(p) || p < 0) return notify('Enter the offer price');
+    const cp = comparePrice.trim() ? Number(comparePrice) : itemsTotal || null;
+    if (form.starts_on && form.ends_on && form.ends_on < form.starts_on) return notify('The end date must be after the start date');
+    setBusy(true);
+    try {
+      const { id: _id, created_at: _c, ...rest } = form as Promotion;
+      await savePromotion(editing === 'new' ? null : editing, {
+        ...rest,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        price: p,
+        compare_price: cp != null && Number.isFinite(cp) && cp > p ? cp : null,
+      });
+      notify('Offer saved');
+      setEditing(null);
+      load();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleActive(p: Promotion) {
+    try {
+      const { id, created_at: _c, ...rest } = p;
+      await savePromotion(id, { ...rest, active: !p.active });
+      load();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Update failed');
+    }
+  }
+
+  async function remove(p: Promotion) {
+    if (!confirm(`Delete the offer "${p.title}"?`)) return;
+    try {
+      await deletePromotion(p.id);
+      notify('Offer deleted');
+      load();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Delete failed');
+    }
+  }
+
+  return (
+    <div className="stack">
+      <div className="row">
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Combo offers</h1>
+        {!editing && !error && (
+          <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => open(null)}>
+            + New offer
+          </button>
+        )}
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Offers appear in a "Special offers" section on the shop only while at least one is switched on and inside its dates. With no
+        offers running, the section is hidden.
+      </p>
+      {error && <p className="error">{error}</p>}
+
+      {editing && (
+        <form className="promo-form stack" onSubmit={save}>
+          <label className="field">
+            <span>Offer name</span>
+            <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Tee + Shorts combo" />
+          </label>
+          <label className="field">
+            <span>Description</span>
+            <textarea className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Any tee with any shorts. Pick your sizes on WhatsApp." />
+          </label>
+
+          <div className="field">
+            <span className="small caps muted">Products in this combo</span>
+            <div className="promo-products">
+              {products.map((p) => (
+                <label key={p.id} className={`promo-product ${form.product_ids.includes(p.id) ? 'on' : ''}`}>
+                  <input type="checkbox" checked={form.product_ids.includes(p.id)} onChange={() => toggleProduct(p.id)} />
+                  {p.images[0] && <img src={p.images[0]} alt="" />}
+                  <span>
+                    {p.name}
+                    <small>{money(p.price)}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="row">
+            <label className="field" style={{ flex: 1, minWidth: 160 }}>
+              <span>Offer price ({settings.currency})</span>
+              <input className="input" type="number" min="0" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </label>
+            <label className="field" style={{ flex: 1, minWidth: 160 }}>
+              <span>Usual price (optional)</span>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                inputMode="decimal"
+                value={comparePrice}
+                onChange={(e) => setComparePrice(e.target.value)}
+                placeholder={itemsTotal ? `${itemsTotal} (items total)` : ''}
+              />
+            </label>
+          </div>
+
+          <div className="row">
+            <label className="field" style={{ flex: 1, minWidth: 160 }}>
+              <span>Starts (optional)</span>
+              <input className="input" type="date" value={form.starts_on ?? ''} onChange={(e) => setForm({ ...form, starts_on: e.target.value || null })} />
+            </label>
+            <label className="field" style={{ flex: 1, minWidth: 160 }}>
+              <span>Ends (optional)</span>
+              <input className="input" type="date" value={form.ends_on ?? ''} onChange={(e) => setForm({ ...form, ends_on: e.target.value || null })} />
+            </label>
+          </div>
+
+          <div className="field">
+            <span className="small caps muted">Banner image (optional, otherwise the product photos are used)</span>
+            <div className="row">
+              {form.image && <img src={form.image} alt="" className="promo-thumb" />}
+              <input type="file" accept="image/*" onChange={(e) => onImage(e.target.files?.[0])} disabled={busy} />
+              {form.image && (
+                <button type="button" className="link-btn small" onClick={() => setForm({ ...form, image: '' })}>
+                  Remove image
+                </button>
+              )}
+            </div>
+          </div>
+
+          <label className="row small">
+            <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
+            Show this offer on the shop
+          </label>
+
+          <div className="row">
+            <button className="btn" type="submit" disabled={busy}>
+              Save offer
+            </button>
+            <button className="btn btn-outline" type="button" onClick={() => setEditing(null)} disabled={busy}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!editing && !error && (
+        promos.length === 0 ? (
+          <p className="small muted">No offers yet. The shop will not show an offers section until you add one.</p>
+        ) : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Offer</th>
+                  <th>Price</th>
+                  <th>Dates</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {promos.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <strong>{p.title}</strong>
+                      <div className="small muted">{p.product_ids.length} products</div>
+                    </td>
+                    <td>
+                      {money(p.price)}
+                      {p.compare_price != null && <div className="small muted" style={{ textDecoration: 'line-through' }}>{money(p.compare_price)}</div>}
+                    </td>
+                    <td className="small">{p.starts_on || p.ends_on ? `${p.starts_on ?? '…'} to ${p.ends_on ?? '…'}` : 'Always'}</td>
+                    <td>
+                      <span className={`promo-status ${isLive(p) ? 'live' : ''}`}>{statusOf(p)}</span>
+                    </td>
+                    <td>
+                      <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => toggleActive(p)}>
+                          {p.active ? 'Turn off' : 'Turn on'}
+                        </button>
+                        <button className="btn btn-outline btn-sm" onClick={() => open(p)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => remove(p)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+    </div>
+  );
+}

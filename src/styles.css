@@ -404,10 +404,18 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .hero { --mx: 50%; --my: 40%; padding-bottom: 72px; }
 .hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px circle at var(--mx) var(--my), rgba(216, 184, 112, 0.13), transparent 70%); transition: background 0.2s; }
 .hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.07; background-image: radial-gradient(rgba(255, 255, 255, 0.9) 0.6px, transparent 0.6px); background-size: 4px 4px; mix-blend-mode: overlay; }
-.hero .hero-title { font-family: var(--serif); text-transform: uppercase; font-weight: 400; letter-spacing: 0.06em; font-size: clamp(44px, 9vw, 112px); line-height: 0.95; margin: 0 0 34px; }
-.hero .hero-title em { letter-spacing: 0.04em; }
-.hero .hero-title .line:nth-child(1) > span { animation-delay: 0.45s; }
-.hero .hero-title .line:nth-child(2) > span { animation-delay: 0.65s; }
+.hero .hero-title {
+  font-family: 'Montserrat', var(--font); font-weight: 500; text-transform: uppercase;
+  font-size: clamp(15px, 2.4vw, 28px); line-height: 1.6; letter-spacing: 0.42em;
+  /* trailing tracking would push the line off-centre */
+  margin: 4px 0 40px; padding-left: 0.42em; color: var(--on-ink);
+  animation: tagline-in 1.6s 0.5s var(--ease) both;
+}
+.hero .hero-title span { display: inline-block; white-space: nowrap; }
+.hero .hero-title::after { content: ''; display: block; width: 48px; height: 1px; margin: 22px auto 0; background: var(--gold); transform-origin: center; animation: rule-in 1s 1.4s var(--ease) both; }
+@keyframes tagline-in { from { opacity: 0; letter-spacing: 0.9em; filter: blur(4px); } to { opacity: 1; letter-spacing: 0.42em; filter: none; } }
+@keyframes rule-in { from { transform: scaleX(0); } }
+@media (max-width: 480px) { .hero .hero-title { letter-spacing: 0.28em; padding-left: 0.28em; } @keyframes tagline-in { from { opacity: 0; letter-spacing: 0.6em; } to { opacity: 1; letter-spacing: 0.28em; } } }
 .hero .btn { animation-delay: 1s; }
 .hero-badge { position: absolute; left: 6%; bottom: 56px; width: 132px; height: 132px; z-index: 1; animation: spin 22s linear infinite, fade-in 1.2s 1.2s var(--ease) both; }
 .hero-badge text { fill: var(--gold); font-family: var(--font); font-size: 8.6px; letter-spacing: 0; text-transform: uppercase; }
@@ -445,3 +453,48 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .report-tile span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-500); }
 .report-tile strong { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.1; }
 .report-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- Special offers (only when a promotion is live) ---------- */
+.offers { padding: 72px 0 8px; }
+.offers-head { text-align: center; margin-bottom: 36px; }
+.offers-head .eyebrow { color: var(--gold-deep); }
+.offers-head h2 { font-size: clamp(30px, 4vw, 42px); margin: 0; }
+.offers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.offers-grid.single { max-width: 860px; margin: 0 auto; }
+.offers-grid.single .offer-card { display: grid; grid-template-columns: 1.1fr 1fr; }
+.offer-card { position: relative; background: var(--white); border: 1px solid var(--gray-200); overflow: hidden; transition: box-shadow 0.6s var(--ease), transform 0.6s var(--ease), opacity 0.9s var(--ease); }
+.offer-card::before { content: ''; position: absolute; inset: 0; border: 1px solid var(--gold); opacity: 0; transition: opacity 0.5s var(--ease); pointer-events: none; z-index: 2; }
+.offer-card:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -24px rgba(11, 11, 11, 0.35); }
+.offer-card:hover::before { opacity: 1; }
+.offer-media { position: relative; aspect-ratio: 4 / 3; background: var(--black); display: grid; overflow: hidden; }
+.offer-media.n2 { grid-template-columns: 1fr 1fr; }
+.offer-media.n3 { grid-template-columns: 1fr 1fr 1fr; }
+.offer-media img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--ease); }
+.offer-card:hover .offer-media img { transform: scale(1.05); }
+.offers-grid.single .offer-media { aspect-ratio: auto; min-height: 320px; }
+.offer-mono { display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-size: 5rem; color: var(--gold); }
+.offer-save { position: absolute; top: 14px; left: 14px; background: var(--gold); color: var(--black); font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; }
+.offer-body { padding: 24px 24px 22px; display: flex; flex-direction: column; }
+.offer-body h3 { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; margin: 0 0 6px; }
+.offer-desc { color: var(--gray-700); font-size: 0.92rem; margin: 0 0 12px; white-space: pre-line; }
+.offer-items { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+.offer-items li { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--gray-300); border-radius: 999px; padding: 4px 10px; }
+.offer-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.offer-price { display: flex; align-items: baseline; gap: 10px; }
+.offer-price strong { font-family: var(--serif); font-weight: 500; font-size: 1.7rem; color: var(--gold-deep); }
+.offer-price s { color: var(--gray-500); font-size: 0.9rem; }
+.offer-foot .btn { gap: 8px; }
+.offer-ends { margin: 12px 0 0; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray-500); }
+@media (max-width: 760px) { .offers { padding-top: 48px; } .offers-grid.single .offer-card { grid-template-columns: 1fr; } .offers-grid.single .offer-media { min-height: 0; aspect-ratio: 4 / 3; } }
+
+/* ---------- Admin: promotions ---------- */
+.promo-form { border: 1px solid var(--gray-200); padding: 20px; background: var(--white); }
+.promo-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
+.promo-product { display: flex; align-items: center; gap: 10px; border: 1px solid var(--gray-200); padding: 8px 10px; cursor: pointer; font-size: 0.85rem; }
+.promo-product.on { border-color: var(--gold-deep); box-shadow: inset 0 0 0 1px var(--gold-deep); }
+.promo-product img { width: 36px; height: 44px; object-fit: cover; }
+.promo-product small { display: block; color: var(--gray-500); }
+.promo-product input { accent-color: var(--gold-deep); }
+.promo-thumb { width: 96px; height: 72px; object-fit: cover; }
+.promo-status { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 999px; background: var(--gray-100); color: var(--gray-500); white-space: nowrap; }
+.promo-status.live { background: var(--black); color: var(--gold); }

@@ -1,6 +1,6 @@
 import { supabase, isConfigured, IMAGE_BUCKET } from './supabase';
 import { demoProducts, demoSettings } from './demo';
-import type { InventoryLogEntry, Product, ProductStatus, StoreSettings } from './types';
+import type { InventoryLogEntry, Product, ProductStatus, Promotion, StoreSettings } from './types';
 
 const PRODUCT_SELECT = '*, product_sizes(*)';
 
@@ -44,6 +44,30 @@ export async function fetchSettings(): Promise<StoreSettings> {
   return { ...settings, whatsapp_number: settings.whatsapp_number || demoSettings.whatsapp_number };
 }
 
+function normalizePromotion(p: Promotion): Promotion {
+  return {
+    ...p,
+    price: Number(p.price),
+    compare_price: p.compare_price == null ? null : Number(p.compare_price),
+    product_ids: p.product_ids ?? [],
+  };
+}
+
+/** Promotions running today. Returns none (rather than failing) if the table has not been created yet. */
+export async function fetchLivePromotions(): Promise<Promotion[]> {
+  if (!isConfigured) return [];
+  const { data, error } = await db().from('promotions').select('*').eq('active', true).order('sort_order').order('created_at');
+  if (error) return [];
+  return (data as Promotion[]).map(normalizePromotion).filter((p) => isLive(p));
+}
+
+/** Active and inside its optional date range, by the visitor's local date. */
+export function isLive(p: Promotion, today = new Date()): boolean {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const d = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  return p.active && (!p.starts_on || p.starts_on <= d) && (!p.ends_on || p.ends_on >= d);
+}
+
 /** Calls `onChange` whenever products, sizes/stock or settings change in the database. */
 export function subscribeToCatalog(onChange: () => void): () => void {
   if (!supabase) return () => {};
@@ -53,6 +77,7 @@ export function subscribeToCatalog(onChange: () => void): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'product_sizes' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'promotions' }, onChange)
     .subscribe();
   return () => {
     client.removeChannel(channel);
@@ -206,6 +231,28 @@ export async function fetchInventoryLogBetween(from: Date, to: Date): Promise<In
 
 export async function updateSettings(settings: StoreSettings) {
   const { error } = await db().from('store_settings').update(settings).eq('id', 1);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------- promotions (admin)
+
+export type PromotionInput = Omit<Promotion, 'id' | 'created_at'>;
+
+export async function fetchAllPromotions(): Promise<Promotion[]> {
+  const { data, error } = await db().from('promotions').select('*').order('sort_order').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as Promotion[]).map(normalizePromotion);
+}
+
+export async function savePromotion(id: string | null, input: PromotionInput): Promise<void> {
+  const { error } = id
+    ? await db().from('promotions').update(input).eq('id', id)
+    : await db().from('promotions').insert(input);
+  if (error) throw error;
+}
+
+export async function deletePromotion(id: string): Promise<void> {
+  const { error } = await db().from('promotions').delete().eq('id', id);
   if (error) throw error;
 }
 

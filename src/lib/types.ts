@@ -42,3 +42,18 @@ export interface InventoryLogEntry {
 }
 
 export type PaymentMethod = 'cod' | 'bank';
+
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  compare_price: number | null;
+  product_ids: string[];
+  image: string;
+  active: boolean;
+  starts_on: string | null;
+  ends_on: string | null;
+  sort_order: number;
+  created_at: string;
+}
