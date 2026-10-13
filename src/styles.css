@@ -598,3 +598,12 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
   .announcement .truck, .announcement-text, .free-strip::after, .free-strip-icon .truck, .btn-gold::after, .badge-count.bump, .card-shine { animation: none; transition: none; }
   .card-img { transform: none !important; }
 }
+
+/* ---------- Social links ---------- */
+.footer-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.footer-follow { display: flex; align-items: center; gap: 14px; }
+.footer-follow .caps { letter-spacing: 3px; color: var(--on-ink-muted); }
+.socials { display: flex; gap: 10px; }
+.socials a { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); transition: background 0.35s var(--ease), color 0.35s var(--ease), transform 0.35s var(--ease); }
+.socials a:hover { background: var(--gold); color: var(--black); transform: translateY(-3px) rotate(-6deg); }
+.socials svg { width: 19px; height: 19px; }
