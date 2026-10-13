@@ -29,6 +29,7 @@ function product(
     category,
     status,
     images: [svg(name.toUpperCase(), shade)],
+    colors: [],
     sort_order: 0,
     created_at: now,
     updated_at: now,

@@ -8,8 +8,17 @@ export interface CartItem {
   productId: string;
   sizeId: string;
   size: string;
+  /** Chosen colour name, for products that come in colours. */
+  color?: string;
   quantity: number;
 }
+
+/** One cart line per size and colour. */
+export const lineKey = (i: Pick<CartItem, 'sizeId' | 'color'>) => `${i.sizeId}|${i.color ?? ''}`;
+
+/** Units of a size already in the cart, across every colour (stock is kept per size). */
+export const sizeInCart = (items: CartItem[], sizeId: string) =>
+  items.filter((i) => i.sizeId === sizeId).reduce((n, i) => n + i.quantity, 0);
 
 export interface ResolvedCartItem extends CartItem {
   product: Product | undefined;
@@ -23,8 +32,8 @@ interface CartState {
   items: CartItem[];
   count: number;
   add: (item: CartItem) => void;
-  setQuantity: (sizeId: string, quantity: number) => void;
-  remove: (sizeId: string) => void;
+  setQuantity: (key: string, quantity: number) => void;
+  remove: (key: string) => void;
   clear: () => void;
 }
 
@@ -58,19 +67,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       count: items.reduce((n, i) => n + i.quantity, 0),
       add: (item) =>
         setItems((prev) => {
-          const existing = prev.find((i) => i.sizeId === item.sizeId);
+          const existing = prev.find((i) => lineKey(i) === lineKey(item));
           if (existing) {
             return prev.map((i) =>
-              i.sizeId === item.sizeId ? { ...i, quantity: i.quantity + item.quantity } : i,
+              lineKey(i) === lineKey(item) ? { ...i, quantity: i.quantity + item.quantity } : i,
             );
           }
           return [...prev, item];
         }),
-      setQuantity: (sizeId, quantity) =>
+      setQuantity: (key, quantity) =>
         setItems((prev) =>
-          prev.map((i) => (i.sizeId === sizeId ? { ...i, quantity: Math.max(1, quantity) } : i)),
+          prev.map((i) => (lineKey(i) === key ? { ...i, quantity: Math.max(1, quantity) } : i)),
         ),
-      remove: (sizeId) => setItems((prev) => prev.filter((i) => i.sizeId !== sizeId)),
+      remove: (key) => setItems((prev) => prev.filter((i) => lineKey(i) !== key)),
       clear: () => setItems([]),
     }),
     [items],
@@ -90,7 +99,9 @@ export function resolveCart(items: CartItem[], products: Product[]): ResolvedCar
   return items.map((item) => {
     const product = products.find((p) => p.id === item.productId);
     const size = product?.product_sizes.find((s) => s.id === item.sizeId);
-    const available = product?.status === 'available' && size ? size.stock : 0;
+    // Stock is per size, so other colours of the same size share it.
+    const others = sizeInCart(items, item.sizeId) - item.quantity;
+    const available = product?.status === 'available' && size ? Math.max(0, size.stock - others) : 0;
     return {
       ...item,
       product,

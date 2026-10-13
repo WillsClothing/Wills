@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import FreeDelivery from './FreeDelivery';
+import { isLight } from '../lib/colors';
 import { formatPrice, sortSizes, totalStock } from '../lib/format';
 import type { Product } from '../lib/types';
 
@@ -42,6 +43,14 @@ export default function ProductCard({ product, currency }: { product: Product; c
           <span className="card-price">{formatPrice(product.price, currency)}</span>
           {!soldOut && sizes.length > 0 && <span className="card-sizes">{sizes.map((s) => s.size).join(' · ')}</span>}
         </div>
+        {product.colors.length > 0 && (
+          <div className="card-colors" aria-label={`Colours: ${product.colors.map((c) => c.name).join(', ')}`}>
+            {product.colors.slice(0, 6).map((c) => (
+              <span key={c.name} className={`color-dot ${isLight(c.hex) ? 'light' : ''}`} style={{ background: c.hex }} title={c.name} />
+            ))}
+            {product.colors.length > 6 && <small>+{product.colors.length - 6}</small>}
+          </div>
+        )}
       </div>
     </Link>
   );

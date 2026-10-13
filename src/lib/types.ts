@@ -8,6 +8,11 @@ export interface ProductSize {
   sort_order: number;
 }
 
+export interface ProductColor {
+  name: string;
+  hex: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -16,6 +21,8 @@ export interface Product {
   category: string;
   status: ProductStatus;
   images: string[];
+  /** Colours this product comes in, chosen by the admin. Empty = no colour choice. */
+  colors: ProductColor[];
   sort_order: number;
   created_at: string;
   updated_at: string;

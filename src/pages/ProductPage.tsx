@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { isSoldOut } from '../components/ProductCard';
-import { useCart } from '../lib/cart';
+import { sizeInCart, useCart } from '../lib/cart';
+import { isLight } from '../lib/colors';
 import { formatPrice, sortSizes } from '../lib/format';
 import FreeDelivery from '../components/FreeDelivery';
 import { useStore } from '../lib/store';
@@ -16,13 +17,16 @@ export default function ProductPage() {
   const [imageIndex, setImageIndex] = useState(0);
   const [sizeId, setSizeId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [color, setColor] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
 
   useEffect(() => {
     setImageIndex(0);
     setSizeId(null);
     setQuantity(1);
-  }, [id]);
+    setColor(product?.colors.length === 1 ? product.colors[0].name : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, product?.colors.length]);
 
   if (!product) {
     return (
@@ -45,13 +49,14 @@ export default function ProductPage() {
   const sizes = sortSizes(product.product_sizes);
   const soldOut = isSoldOut(product);
   const selected = sizes.find((s) => s.id === sizeId);
-  const inCart = cart.items.find((i) => i.sizeId === sizeId)?.quantity ?? 0;
+  const inCart = sizeId ? sizeInCart(cart.items, sizeId) : 0;
+  const needsColor = product.colors.length > 0 && !color;
   const maxAddable = selected ? Math.max(0, selected.stock - inCart) : 0;
   const images = product.images.length ? product.images : [];
 
   function addToCart() {
-    if (!product || !selected || quantity < 1 || quantity > maxAddable) return;
-    cart.add({ productId: product.id, sizeId: selected.id, size: selected.size, quantity });
+    if (!product || !selected || needsColor || quantity < 1 || quantity > maxAddable) return;
+    cart.add({ productId: product.id, sizeId: selected.id, size: selected.size, color: color ?? undefined, quantity });
     setAdded(true);
     setQuantity(1);
     setTimeout(() => setAdded(false), 2500);
@@ -99,6 +104,21 @@ export default function ProductPage() {
             <div className="notice">This product is currently sold out.</div>
           ) : (
             <>
+              {product.colors.length > 0 && (
+                <div>
+                  <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
+                    Colour {color && <span className="muted">· {color}</span>}
+                  </p>
+                  <div className="color-pick">
+                    {product.colors.map((c) => (
+                      <button key={c.name} type="button" className={color === c.name ? 'active' : ''} onClick={() => setColor(c.name)} title={c.name} aria-label={c.name} aria-pressed={color === c.name}>
+                        <span className={`swatch ${isLight(c.hex) ? 'light' : ''}`} style={{ background: c.hex }} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
                   Size {selected && <span className="muted">· {selected.size}</span>}
@@ -147,8 +167,8 @@ export default function ProductPage() {
               </div>
 
               <div className="stack">
-                <button className="btn btn-block" disabled={!selected || maxAddable < 1} onClick={addToCart}>
-                  {!selected ? 'Select a size' : maxAddable < 1 ? 'Max quantity in cart' : 'Add to cart'}
+                <button className="btn btn-block" disabled={!selected || needsColor || maxAddable < 1} onClick={addToCart}>
+                  {needsColor ? 'Select a colour' : !selected ? 'Select a size' : maxAddable < 1 ? 'Max quantity in cart' : 'Add to cart'}
                 </button>
                 {added && (
                   <div className="notice row">
