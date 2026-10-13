@@ -5,12 +5,13 @@ import { useStore } from '../lib/store';
 import { isConfigured } from '../lib/supabase';
 import { whatsappLink } from '../lib/whatsapp';
 import Logo from './Logo';
+import { OfferDock, OfferPopup } from './Offers';
 import WhatsAppIcon from './WhatsAppIcon';
 import WillsBot from './WillsBot';
 
 export default function ShopLayout() {
   const { count } = useCart();
-  const { settings } = useStore();
+  const { settings, products, promotions } = useStore();
   const hasWhatsApp = Boolean(settings.whatsapp_number);
   const inquiry = `Hello ${settings.store_name}, I have a question.`;
   const { pathname } = useLocation();
@@ -91,6 +92,12 @@ export default function ShopLayout() {
         </a>
       )}
       <WillsBot />
+      {promotions.length > 0 && (
+        <>
+          <OfferDock promotions={promotions} products={products} />
+          <OfferPopup promotions={promotions} products={products} />
+        </>
+      )}
     </>
   );
 }
