@@ -79,6 +79,13 @@ export default function Promotions() {
     });
   }
 
+  // A combo can hold the same product more than once ("2 tees for ..."): it is simply repeated in product_ids.
+  function setQty(id: string, qty: number) {
+    setForm((f) => ({ ...f, product_ids: [...f.product_ids.filter((x) => x !== id), ...Array<string>(Math.max(1, qty)).fill(id)] }));
+  }
+
+  const qtyOf = (id: string) => form.product_ids.filter((x) => x === id).length;
+
   function setKind(kind: PromotionKind) {
     setForm((f) => ({ ...f, kind, product_ids: kind === 'special' ? f.product_ids.slice(0, 1) : f.product_ids }));
   }
@@ -101,7 +108,7 @@ export default function Promotions() {
     const p = Number(price);
     if (!form.title.trim()) return notify('Give the offer a name');
     if (!price || !Number.isFinite(p) || p < 0) return notify('Enter the offer price');
-    if (form.kind === 'combo' && form.product_ids.length < 2) return notify('Pick at least two products for a combo');
+    if (form.kind === 'combo' && form.product_ids.length < 2) return notify('A combo needs at least 2 pieces, e.g. 2 tees or a tee + shorts');
     if (form.kind === 'special' && form.product_ids.length !== 1) return notify('Pick the product this special offer is for');
     const cp = comparePrice.trim() ? Number(comparePrice) : itemsTotal || null;
     if (form.starts_on && form.ends_on && form.ends_on < form.starts_on) return notify('The end date must be after the start date');
@@ -169,7 +176,7 @@ export default function Promotions() {
             <div className="kind-pick">
               <button type="button" className={form.kind === 'combo' ? 'on' : ''} onClick={() => setKind('combo')}>
                 <strong>Combo offer</strong>
-                <small>Two or more products together for one price</small>
+                <small>2 or more pieces for one price, e.g. 2 tees or a tee + shorts</small>
               </button>
               <button type="button" className={form.kind === 'special' ? 'on' : ''} onClick={() => setKind('special')}>
                 <strong>Special offer</strong>
@@ -188,19 +195,39 @@ export default function Promotions() {
           </label>
 
           <div className="field">
-            <span className="small caps muted">{form.kind === 'combo' ? 'Products in this combo (pick two or more)' : 'Product on offer (pick one)'}</span>
+            <span className="small caps muted">{form.kind === 'combo'
+                ? 'What is in this combo (2 or more pieces, use + for more than one of a product)'
+                : 'Product on offer (pick one)'}</span>
             <div className="promo-products">
               {products.map((p) => (
-                <label key={p.id} className={`promo-product ${form.product_ids.includes(p.id) ? 'on' : ''}`}>
-                  <input type={form.kind === 'special' ? 'radio' : 'checkbox'} name="promo-product" checked={form.product_ids.includes(p.id)} onChange={() => toggleProduct(p.id)} />
-                  {p.images[0] && <img src={p.images[0]} alt="" />}
-                  <span>
-                    {p.name}
-                    <small>{money(p.price)}</small>
-                  </span>
-                </label>
+                <div key={p.id} className={`promo-product ${qtyOf(p.id) ? 'on' : ''}`}>
+                  <label>
+                    <input type={form.kind === 'special' ? 'radio' : 'checkbox'} name="promo-product" checked={qtyOf(p.id) > 0} onChange={() => toggleProduct(p.id)} />
+                    {p.images[0] && <img src={p.images[0]} alt="" />}
+                    <span>
+                      {p.name}
+                      <small>{money(p.price)}</small>
+                    </span>
+                  </label>
+                  {form.kind === 'combo' && qtyOf(p.id) > 0 && (
+                    <span className="qty-step" aria-label={`Pieces of ${p.name}`}>
+                      <button type="button" onClick={() => setQty(p.id, qtyOf(p.id) - 1)} disabled={qtyOf(p.id) <= 1} aria-label="One less">
+                        −
+                      </button>
+                      <strong>{qtyOf(p.id)}</strong>
+                      <button type="button" onClick={() => setQty(p.id, qtyOf(p.id) + 1)} aria-label="One more">
+                        +
+                      </button>
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
+            {form.kind === 'combo' && form.product_ids.length > 0 && (
+              <p className="small muted" style={{ margin: '6px 0 0' }}>
+                {form.product_ids.length} {form.product_ids.length === 1 ? 'piece' : 'pieces'} selected, worth {money(itemsTotal)} at normal prices
+              </p>
+            )}
           </div>
 
           <div className="row">
@@ -283,7 +310,7 @@ export default function Promotions() {
                     <td>
                       <strong>{p.title}</strong>
                       <div className="small muted">
-                        {p.kind === 'special' ? 'Special offer' : `Combo of ${p.product_ids.length}`}
+                        {p.kind === 'special' ? 'Special offer' : `Combo, ${p.product_ids.length} pieces`}
                       </div>
                     </td>
                     <td>

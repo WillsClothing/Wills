@@ -14,11 +14,14 @@ function useOffer(promo: Promotion, products: Product[]) {
   const items = promo.product_ids.map((id) => products.find((p) => p.id === id)).filter((p): p is Product => !!p);
   const usual = promo.compare_price ?? (items.length ? items.reduce((s, p) => s + p.price, 0) : null);
   const save = usual && usual > promo.price ? Math.round(((usual - promo.price) / usual) * 100) : 0;
-  const pictures = promo.image ? [promo.image] : items.map((p) => p.images[0]).filter(Boolean).slice(0, 3);
+  // A product can appear more than once in a combo ("2 tees"), so group it with a count for display.
+  const lines = [...new Set(items)].map((p) => ({ product: p, qty: items.filter((x) => x === p).length }));
+  const lineText = ({ product, qty }: { product: Product; qty: number }) => (qty > 1 ? `${qty} × ${product.name}` : product.name);
+  const pictures = promo.image ? [promo.image] : lines.map((l) => l.product.images[0]).filter(Boolean).slice(0, 3);
   const label = promo.kind === 'special' ? 'Special offer' : 'Combo offer';
   const message = [
     `Hello ${settings.store_name}, I'd like the "${promo.title}" ${label.toLowerCase()} (${money(promo.price)}).`,
-    items.length ? `Items: ${items.map((p) => p.name).join(' + ')}` : '',
+    lines.length ? `Items: ${lines.map(lineText).join(' + ')}` : '',
     'My sizes: ',
   ]
     .filter(Boolean)
@@ -27,7 +30,7 @@ function useOffer(promo: Promotion, products: Product[]) {
   const ends = promo.ends_on
     ? new Date(`${promo.ends_on}T00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
     : '';
-  return { money, items, usual, save, pictures, label, claim, ends };
+  return { money, lines, lineText, usual, save, pictures, label, claim, ends };
 }
 
 function OfferMedia({ pictures, title, save }: { pictures: string[]; title: string; save: number }) {
@@ -48,12 +51,12 @@ function OfferSlide({ promo, products, active }: { promo: Promotion; products: P
         <p className="spot-kind">{o.label}</p>
         <h2>{promo.title}</h2>
         {promo.description && <p className="spot-desc">{promo.description}</p>}
-        {o.items.length > 0 && (
+        {o.lines.length > 0 && (
           <ul className="offer-items">
-            {o.items.map((p) => (
-              <li key={p.id}>
-                <Link to={`/product/${p.id}`} tabIndex={active ? 0 : -1}>
-                  {p.name}
+            {o.lines.map((l) => (
+              <li key={l.product.id}>
+                <Link to={`/product/${l.product.id}`} tabIndex={active ? 0 : -1}>
+                  {o.lineText(l)}
                 </Link>
               </li>
             ))}
