@@ -12,7 +12,7 @@ export default function LabelSheet({ name, price, variants, perStock }: { name: 
     .flatMap((v) => Array.from({ length: perStock ? v.stock : 1 }, (_, i) => ({ v, key: `${v.id}-${i}` })));
   // Rendered straight into <body> so print layout is not affected by the admin page around it.
   return createPortal(
-    <div className="label-sheet" aria-hidden="true">
+    <div className="label-sheet print-root" aria-hidden="true">
       {labels.map(({ v, key }) => (
         <div className="label" key={key}>
           <strong>{settings.store_name}</strong>

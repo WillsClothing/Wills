@@ -79,6 +79,7 @@ export default function AdminLayout() {
           Products
         </NavLink>
         <NavLink to="/admin/inventory">Inventory</NavLink>
+        <NavLink to="/admin/invoices">Invoices</NavLink>
         <NavLink to="/admin/offers">Special offers</NavLink>
         <NavLink to="/admin/reports">Reports</NavLink>
         <NavLink to="/admin/settings">Settings</NavLink>
