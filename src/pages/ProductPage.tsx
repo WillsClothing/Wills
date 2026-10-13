@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { isSoldOut } from '../components/ProductCard';
 import { useCart } from '../lib/cart';
 import { formatPrice, sortSizes } from '../lib/format';
+import FreeDelivery from '../components/FreeDelivery';
 import { useStore } from '../lib/store';
 
 export default function ProductPage() {
@@ -92,6 +93,7 @@ export default function ProductPage() {
             <h1>{product.name}</h1>
             <div className="price-lg">{formatPrice(product.price, settings.currency)}</div>
           </div>
+          <FreeDelivery variant="strip" />
 
           {soldOut ? (
             <div className="notice">This product is currently sold out.</div>

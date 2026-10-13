@@ -22,6 +22,7 @@ function useOffer(promo: Promotion, products: Product[]) {
   const message = [
     `Hello ${settings.store_name}, I'd like the "${promo.title}" ${label.toLowerCase()} (${money(promo.price)}).`,
     lines.length ? `Items: ${lines.map(lineText).join(' + ')}` : '',
+    'Delivery: FREE (island wide)',
     'My sizes: ',
   ]
     .filter(Boolean)

@@ -45,6 +45,7 @@ export function buildOrderMessage(
     '',
     ...lines,
     '',
+    'Delivery: FREE (island wide)',
     `*Total: ${formatPrice(total, c)}*`,
     `Payment method: ${PAYMENT_LABELS[payment]}`,
   ];

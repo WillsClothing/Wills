@@ -4,6 +4,7 @@ import { useCart } from '../lib/cart';
 import { useStore } from '../lib/store';
 import { isConfigured } from '../lib/supabase';
 import { whatsappLink } from '../lib/whatsapp';
+import { TruckIcon } from './FreeDelivery';
 import Logo from './Logo';
 import { OfferDock, OfferPopup } from './Offers';
 import WhatsAppIcon from './WhatsAppIcon';
@@ -18,7 +19,11 @@ export default function ShopLayout() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 24);
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      document.documentElement.style.setProperty('--scroll', String(max > 0 ? Math.min(1, window.scrollY / max) : 0));
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -31,7 +36,11 @@ export default function ShopLayout() {
           Demo mode: showing sample products. Add your Supabase keys to go live (see README).
         </div>
       )}
-      <div className="announcement">Island wide free delivery</div>
+      <div className="scroll-progress" aria-hidden="true" />
+      <div className="announcement">
+        <TruckIcon />
+        <span className="announcement-text">Island wide free delivery</span>
+      </div>
       <header className={`header ${scrolled ? 'scrolled' : ''}`}>
         <div className="container">
           <Link to="/" className="logo" aria-label={settings.store_name}>
@@ -47,7 +56,7 @@ export default function ShopLayout() {
               </a>
             )}
             <NavLink to="/cart" className="cart-link" aria-label={`Cart, ${count} items`}>
-              Cart <span className="badge-count">{count}</span>
+              Cart <span key={count} className="badge-count bump">{count}</span>
             </NavLink>
           </nav>
         </div>
