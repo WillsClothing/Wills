@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { deleteProduct, fetchAllProducts, setProductStatus } from '../lib/api';
-import { formatPrice, sortSizes, totalStock } from '../lib/format';
+import { formatPrice, sortSizes, totalStock, variantLabel } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Product, ProductStatus } from '../lib/types';
 import { useAdmin } from './AdminLayout';
@@ -86,7 +86,7 @@ export default function AdminProducts() {
                 <th></th>
                 <th>Name</th>
                 <th>Price</th>
-                <th>Stock by size</th>
+                <th>Stock by size &amp; colour</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -107,7 +107,7 @@ export default function AdminProducts() {
                     <td className="small">
                       {sortSizes(p.product_sizes).map((s) => (
                         <span key={s.id} className={s.stock === 0 ? 'muted' : s.stock <= 2 ? 'low' : ''} style={{ marginRight: 10, whiteSpace: 'nowrap' }}>
-                          {s.size}: {s.stock}
+                          {variantLabel(s)}: {s.stock}
                         </span>
                       ))}
                       <div className={total === 0 ? 'low' : 'muted'}>Total: {total}</div>

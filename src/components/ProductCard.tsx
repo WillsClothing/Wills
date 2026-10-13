@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import FreeDelivery from './FreeDelivery';
 import { isLight } from '../lib/colors';
-import { formatPrice, sortSizes, totalStock } from '../lib/format';
+import { formatPrice, totalStock, uniqueSizes } from '../lib/format';
 import type { Product } from '../lib/types';
 
 export function isSoldOut(p: Product): boolean {
@@ -25,7 +25,7 @@ function untilt(e: React.MouseEvent<HTMLElement>) {
 export default function ProductCard({ product, currency }: { product: Product; currency: string }) {
   const soldOut = isSoldOut(product);
   const [cover, hover] = product.images;
-  const sizes = sortSizes(product.product_sizes).filter((s) => s.stock > 0);
+  const sizes = uniqueSizes(product.product_sizes.filter((s) => s.stock > 0));
   return (
     <Link to={`/product/${product.id}`} className={`card ${hover ? 'has-hover' : ''}`} onMouseMove={tilt} onMouseLeave={untilt}>
       <div className="card-img">
@@ -41,7 +41,7 @@ export default function ProductCard({ product, currency }: { product: Product; c
         <p className="card-name">{product.name}</p>
         <div className="card-meta">
           <span className="card-price">{formatPrice(product.price, currency)}</span>
-          {!soldOut && sizes.length > 0 && <span className="card-sizes">{sizes.map((s) => s.size).join(' · ')}</span>}
+          {!soldOut && sizes.length > 0 && <span className="card-sizes">{sizes.join(' · ')}</span>}
         </div>
         {product.colors.length > 0 && (
           <div className="card-colors" aria-label={`Colours: ${product.colors.map((c) => c.name).join(', ')}`}>

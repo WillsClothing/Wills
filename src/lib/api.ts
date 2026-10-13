@@ -10,7 +10,13 @@ function db() {
 }
 
 function normalize(p: Product): Product {
-  return { ...p, price: Number(p.price), colors: Array.isArray(p.colors) ? p.colors : [], product_sizes: p.product_sizes ?? [] };
+  return {
+    ...p,
+    sku: p.sku ?? null,
+    price: Number(p.price),
+    colors: Array.isArray(p.colors) ? p.colors : [],
+    product_sizes: (p.product_sizes ?? []).map((s) => ({ ...s, color: s.color ?? '', sku: s.sku ?? '', barcode: s.barcode ?? null })),
+  };
 }
 
 // ---------------------------------------------------------------- public reads
@@ -115,9 +121,11 @@ export async function fetchAllProducts(): Promise<Product[]> {
   return (data as Product[]).map(normalize);
 }
 
+/** One size in one colour ('' = no colour) with the stock the admin wants it to have. */
 export interface SizeInput {
   id?: string;
   size: string;
+  color: string;
   stock: number;
 }
 
@@ -166,23 +174,23 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
     if (error) throw error;
   }
 
+  const hasColors = sizes.some((s) => s.color);
   for (const [index, s] of sizes.entries()) {
-    const label = s.size.trim();
+    const row: Record<string, unknown> = { size: s.size.trim(), sort_order: index };
+    // Only send the colour column when it is used, so stores that have not run variants.sql keep working.
+    if (hasColors || oldSizes.some((o) => o.color)) row.color = s.color;
     if (s.id) {
-      const { error } = await client
-        .from('product_sizes')
-        .update({ size: label, sort_order: index })
-        .eq('id', s.id);
-      if (error) throw error;
+      const { error } = await client.from('product_sizes').update(row).eq('id', s.id);
+      if (error) throw variantsHint(error);
       const before = oldSizes.find((o) => o.id === s.id)?.stock ?? 0;
       if (s.stock !== before) await adjustStock(s.id, s.stock - before, 'Edited in product form');
     } else {
       const { data, error } = await client
         .from('product_sizes')
-        .insert({ product_id: productId, size: label, stock: 0, sort_order: index })
+        .insert({ ...row, product_id: productId, stock: 0 })
         .select('id')
         .single();
-      if (error) throw error;
+      if (error) throw variantsHint(error);
       if (s.stock > 0) await adjustStock(data.id as string, s.stock, 'Initial stock');
     }
   }
@@ -234,6 +242,12 @@ export async function fetchInventoryLogBetween(from: Date, to: Date): Promise<In
     .limit(5000);
   if (error) throw error;
   return data as InventoryLogEntry[];
+}
+
+function variantsHint(error: { message: string }) {
+  return /color|duplicate key/.test(error.message)
+    ? new Error('Stock per colour is not set up in the database yet. Run supabase/variants.sql in the Supabase SQL Editor, then save again.')
+    : error;
 }
 
 function colorsHint(error: { message: string }) {

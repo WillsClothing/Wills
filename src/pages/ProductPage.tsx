@@ -46,7 +46,12 @@ export default function ProductPage() {
     );
   }
 
-  const sizes = sortSizes(product.product_sizes);
+  const allSizes = sortSizes(product.product_sizes);
+  // Stock is kept per size + colour. Older products may have colours without per-colour stock.
+  const perColor = allSizes.some((s) => s.color);
+  const rowsFor = (c: string | null) => (perColor ? allSizes.filter((s) => s.color === c) : allSizes);
+  const colorInStock = (c: string) => rowsFor(c).some((s) => s.stock > 0);
+  const sizes = product.colors.length && perColor && !color ? [] : rowsFor(color);
   const soldOut = isSoldOut(product);
   const selected = sizes.find((s) => s.id === sizeId);
   const inCart = sizeId ? sizeInCart(cart.items, sizeId) : 0;
@@ -111,7 +116,22 @@ export default function ProductPage() {
                   </p>
                   <div className="color-pick">
                     {product.colors.map((c) => (
-                      <button key={c.name} type="button" className={color === c.name ? 'active' : ''} onClick={() => setColor(c.name)} title={c.name} aria-label={c.name} aria-pressed={color === c.name}>
+                      <button
+                        key={c.name}
+                        type="button"
+                        className={`${color === c.name ? 'active' : ''} ${colorInStock(c.name) ? '' : 'out'}`}
+                        disabled={!colorInStock(c.name)}
+                        onClick={() => {
+                          setColor(c.name);
+                          // Keep the same size if it exists in the new colour.
+                          const same = perColor ? rowsFor(c.name).find((r) => r.size === selected?.size && r.stock > 0) : selected;
+                          setSizeId(same?.id ?? null);
+                          setQuantity(1);
+                        }}
+                        title={colorInStock(c.name) ? c.name : `${c.name} (sold out)`}
+                        aria-label={c.name}
+                        aria-pressed={color === c.name}
+                      >
                         <span className={`swatch ${isLight(c.hex) ? 'light' : ''}`} style={{ background: c.hex }} />
                       </button>
                     ))}
@@ -123,6 +143,7 @@ export default function ProductPage() {
                 <p className="small caps" style={{ fontWeight: 500, marginBottom: 8 }}>
                   Size {selected && <span className="muted">· {selected.size}</span>}
                 </p>
+                {sizes.length === 0 && <p className="small muted" style={{ margin: 0 }}>Choose a colour to see the sizes in stock.</p>}
                 <div className="sizes">
                   {sizes.map((s) => (
                     <button

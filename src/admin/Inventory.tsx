@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { adjustStock, fetchAllProducts, fetchInventoryLog } from '../lib/api';
-import { sortSizes } from '../lib/format';
+import { sortSizes, variantLabel } from '../lib/format';
 import type { InventoryLogEntry, Product } from '../lib/types';
 import { useAdmin } from './AdminLayout';
 import StatusBadge from './StatusBadge';
@@ -55,7 +55,15 @@ export default function Inventory() {
   }
 
   const q = query.trim().toLowerCase();
-  const visible = q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
+  // Search by name, SKU or a scanned barcode.
+  const visible = q
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.sku ?? '').toLowerCase().includes(q) ||
+          p.product_sizes.some((s) => s.sku.toLowerCase().includes(q) || s.barcode === q),
+      )
+    : products;
 
   return (
     <div className="stack">
@@ -74,7 +82,7 @@ export default function Inventory() {
         </label>
         <label className="field" style={{ flex: 1, minWidth: 200 }}>
           <span>Search</span>
-          <input className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Product name" />
+          <input className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, SKU or scan a barcode" />
         </label>
       </div>
       {error && <p className="error">{error}</p>}
@@ -84,7 +92,8 @@ export default function Inventory() {
           <thead>
             <tr>
               <th>Product</th>
-              <th>Size</th>
+              <th>Size &amp; colour</th>
+              <th>SKU</th>
               <th>In stock</th>
               <th>Adjust</th>
             </tr>
@@ -103,7 +112,8 @@ export default function Inventory() {
                       </>
                     )}
                   </td>
-                  <td>{s.size}</td>
+                  <td>{variantLabel(s)}</td>
+                  <td className="mono small">{s.sku || '—'}</td>
                   <td className={s.stock === 0 ? 'low' : ''} style={{ fontWeight: 500 }}>
                     {s.stock}
                   </td>
@@ -120,7 +130,7 @@ export default function Inventory() {
                         inputMode="numeric"
                         value={amounts[s.id] ?? ''}
                         onChange={(e) => setAmounts((a) => ({ ...a, [s.id]: e.target.value }))}
-                        aria-label={`Quantity for ${p.name} ${s.size}`}
+                        aria-label={`Quantity for ${p.name} ${variantLabel(s)}`}
                       />
                       <button className="btn btn-sm" disabled={busy === s.id} onClick={() => apply(p, s.id, 1)} aria-label="Add stock">
                         +
