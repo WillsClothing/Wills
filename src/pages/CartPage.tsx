@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { resolveCart, useCart } from '../lib/cart';
@@ -14,6 +14,7 @@ export default function CartPage() {
   const [customer, setCustomer] = useState<CustomerDetails>({ name: '', phone: '', address: '', notes: '' });
   const [sent, setSent] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [cardNotice, setCardNotice] = useState(false);
 
   const items = resolveCart(cart.items, products);
   const total = items.reduce((sum, i) => sum + i.lineTotal, 0);
@@ -147,6 +148,17 @@ export default function CartPage() {
                   </span>
                 </label>
               ))}
+              <label className="pay-option pay-option-off">
+                <input type="radio" name="payment" checked={false} onChange={() => setCardNotice(true)} />
+                <span>
+                  <strong>
+                    Card Payment <span className="soon-tag">Coming soon</span>
+                  </strong>
+                  <span className="small muted" style={{ display: 'block' }}>
+                    Visa, Mastercard and other cards.
+                  </span>
+                </span>
+              </label>
             </div>
             {payment === 'bank' && (
               <div style={{ marginTop: 12 }}>
@@ -206,6 +218,53 @@ export default function CartPage() {
             </div>
           )}
         </aside>
+      </div>
+      {cardNotice && (
+        <CardNotice
+          onClose={() => setCardNotice(false)}
+          onPick={(m) => {
+            setPayment(m);
+            setCardNotice(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CardNotice({ onClose, onPick }: { onClose: () => void; onPick: (m: PaymentMethod) => void }) {
+  const first = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    first.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="card-notice-title"
+        aria-describedby="card-notice-text"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="eyebrow">Card payment</p>
+        <h2 id="card-notice-title">Not available yet</h2>
+        <p id="card-notice-text" className="muted">
+          Card payment is not available as of now. Please use Cash on Delivery or Bank Transfer to place your order.
+        </p>
+        <div className="modal-actions">
+          <button ref={first} type="button" className="btn btn-gold" onClick={() => onPick('cod')}>
+            Use {PAYMENT_LABELS.cod}
+          </button>
+          <button type="button" className="btn btn-outline" onClick={() => onPick('bank')}>
+            Use {PAYMENT_LABELS.bank}
+          </button>
+        </div>
       </div>
     </div>
   );
