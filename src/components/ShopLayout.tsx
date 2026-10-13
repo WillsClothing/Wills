@@ -30,7 +30,7 @@ export default function ShopLayout() {
           Demo mode: showing sample products. Add your Supabase keys to go live (see README).
         </div>
       )}
-      <div className="announcement">Order easily on WhatsApp · Cash on Delivery available</div>
+      <div className="announcement">Island wide free delivery</div>
       <header className={`header ${scrolled ? 'scrolled' : ''}`}>
         <div className="container">
           <Link to="/" className="logo" aria-label={settings.store_name}>
