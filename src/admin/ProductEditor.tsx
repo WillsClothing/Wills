@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { deleteImage, fetchCustomColors, fetchProduct, saveCustomColors, saveProduct, uploadImage, type SizeInput } from '../lib/api';
 import { CATEGORIES } from '../lib/catalog';
 import { isLight, PRESET_COLORS, sameColor } from '../lib/colors';
@@ -48,12 +49,60 @@ const EMPTY: FormState = {
   ids: {},
 };
 
+type SavedInfo = { id: string; isNew: boolean; visible: boolean; name: string };
+
+/** Shown after a save: confirms it and offers the next step. */
+function SavedDialog({ info, onClose }: { info: SavedInfo; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal saved-modal" role="dialog" aria-modal="true" aria-labelledby="saved-title" onClick={(e) => e.stopPropagation()}>
+        <div className="saved-tick" aria-hidden="true">✓</div>
+        <p className="eyebrow">{info.isNew ? 'Product added' : 'Changes saved'}</p>
+        <h2 id="saved-title">{info.name || 'Product saved'}</h2>
+        <p className="muted">
+          {info.isNew ? 'It now has its own SKUs and barcodes.' : 'Your changes are saved.'}{' '}
+          {info.visible ? 'Customers can see it in the shop.' : 'It is hidden from the shop.'}
+        </p>
+        <div className="modal-actions">
+          <Link to="/admin" className="btn btn-gold">
+            Back to admin home
+          </Link>
+          {info.visible && (
+            <Link to={`/product/${info.id}`} className="btn" onClick={() => window.scrollTo(0, 0)}>
+              View in shop
+            </Link>
+          )}
+          <button type="button" className="link-btn" onClick={onClose}>
+            Keep editing
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function ProductEditor() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
   const { notify } = useAdmin();
   const { reload: reloadShop } = useStore();
+  const location = useLocation();
+  const [saved, setSaved] = useState<SavedInfo | null>(null);
+  // A new product arrives here with the "just saved" info in the navigation state. Show it once, then
+  // drop it from history so a refresh doesn't bring the dialog back.
+  const savedFromNav = (location.state as { saved?: SavedInfo } | null)?.saved;
+  useEffect(() => {
+    if (!savedFromNav) return;
+    setSaved(savedFromNav);
+    navigate(location.pathname, { replace: true });
+  }, [savedFromNav, location.pathname, navigate]);
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [removedImages, setRemovedImages] = useState<string[]>([]);
@@ -246,17 +295,14 @@ export default function ProductEditor() {
       });
       await Promise.all(removedImages.map((u) => deleteImage(u).catch(() => undefined)));
       setRemovedImages([]);
-      if (form.status !== 'unavailable') {
-        // Show the product as customers see it; its page has an "Edit" link back here for admins.
-        await reloadShop();
-        navigate(`/product/${savedId}`);
-        window.scrollTo(0, 0);
-        return;
+      await reloadShop();
+      // Confirm the save and let the admin choose where to go next.
+      const done = { id: savedId, isNew, visible: form.status !== 'unavailable', name: form.name.trim() };
+      if (isNew) navigate(`/admin/products/${savedId}`, { replace: true, state: { saved: done } });
+      else {
+        setSaved(done);
+        setReloadKey((k) => k + 1);
       }
-      // Hidden products have no shop page, so stay here where the new SKUs and barcodes are visible.
-      notify(isNew ? 'Product added. Its SKUs and barcodes are below.' : 'Product saved');
-      if (isNew) navigate(`/admin/products/${savedId}`, { replace: true });
-      else setReloadKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -268,6 +314,12 @@ export default function ProductEditor() {
 
   return (
     <form className="stack" onSubmit={submit}>
+      {saved && (
+        <SavedDialog
+          info={saved}
+          onClose={() => setSaved(null)}
+        />
+      )}
       <p className="small">
         <Link to="/admin">← All products</Link>
       </p>
