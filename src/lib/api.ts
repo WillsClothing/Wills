@@ -47,6 +47,7 @@ export async function fetchSettings(): Promise<StoreSettings> {
 function normalizePromotion(p: Promotion): Promotion {
   return {
     ...p,
+    kind: p.kind === 'special' ? 'special' : 'combo',
     price: Number(p.price),
     compare_price: p.compare_price == null ? null : Number(p.compare_price),
     product_ids: p.product_ids ?? [],
@@ -248,6 +249,9 @@ export async function savePromotion(id: string | null, input: PromotionInput): P
   const { error } = id
     ? await db().from('promotions').update(input).eq('id', id)
     : await db().from('promotions').insert(input);
+  if (error && /kind/.test(error.message)) {
+    throw new Error('The offers table needs a quick update. Run supabase/promotions.sql again in the Supabase SQL Editor, then save.');
+  }
   if (error) throw error;
 }
 

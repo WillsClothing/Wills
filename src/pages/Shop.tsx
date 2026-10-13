@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Logo from '../components/Logo';
 import ProductCard, { isSoldOut } from '../components/ProductCard';
-import Offers from '../components/Offers';
+import { OfferPopup, OfferSpotlight } from '../components/Offers';
 import Reveal from '../components/Reveal';
 import { CATEGORIES, priceBands } from '../lib/catalog';
 import { formatPrice } from '../lib/format';
@@ -96,6 +96,13 @@ export default function Shop() {
 
   return (
     <>
+      {promotions.length > 0 && (
+        <>
+          <OfferSpotlight promotions={promotions} products={products} />
+          <OfferPopup promotions={promotions} products={products} />
+        </>
+      )}
+
       <section className="hero" onMouseMove={spotlight}>
         <div className="hero-mist" aria-hidden="true">
           <span />
@@ -139,8 +146,6 @@ export default function Shop() {
           ))}
         </div>
       </section>
-
-      {promotions.length > 0 && <Offers promotions={promotions} products={products} />}
 
       {types.length > 1 && (
         <section className="container type-tiles">

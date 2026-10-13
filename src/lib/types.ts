@@ -43,8 +43,12 @@ export interface InventoryLogEntry {
 
 export type PaymentMethod = 'cod' | 'bank';
 
+export type PromotionKind = 'combo' | 'special';
+
 export interface Promotion {
   id: string;
+  /** combo = several products for one price, special = a discount on one product */
+  kind: PromotionKind;
   title: string;
   description: string;
   price: number;

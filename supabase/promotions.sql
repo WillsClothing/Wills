@@ -5,10 +5,11 @@
 -- (New setups get the same table from schema.sql.)
 -- =====================================================================
 
--- ---------- Promotions (combo offers) -------------------------------
+-- ---------- Promotions (combo and special offers) -------------------------------
 -- Shown on the shop only while active and inside their optional date range.
 create table if not exists public.promotions (
   id            uuid primary key default gen_random_uuid(),
+  kind          text not null default 'combo' check (kind in ('combo', 'special')),
   title         text not null,
   description   text not null default '',
   price         numeric(12, 2) not null check (price >= 0),   -- offer price
@@ -21,6 +22,11 @@ create table if not exists public.promotions (
   sort_order    integer not null default 0,
   created_at    timestamptz not null default now()
 );
+
+-- Offer type, for databases that created the table before it existed.
+alter table public.promotions add column if not exists kind text not null default 'combo';
+alter table public.promotions drop constraint if exists promotions_kind_check;
+alter table public.promotions add constraint promotions_kind_check check (kind in ('combo', 'special'));
 
 alter table public.promotions enable row level security;
 

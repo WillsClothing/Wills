@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deletePromotion, fetchAllProducts, fetchAllPromotions, isLive, savePromotion, uploadImage, type PromotionInput } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { useStore } from '../lib/store';
-import type { Product, Promotion } from '../lib/types';
+import type { Product, Promotion, PromotionKind } from '../lib/types';
 import { useAdmin } from './AdminLayout';
 
 const EMPTY: PromotionInput = {
+  kind: 'combo',
   title: '',
   description: '',
   price: 0,
@@ -70,10 +71,16 @@ export default function Promotions() {
   }
 
   function toggleProduct(id: string) {
-    setForm((f) => ({
-      ...f,
-      product_ids: f.product_ids.includes(id) ? f.product_ids.filter((x) => x !== id) : [...f.product_ids, id],
-    }));
+    setForm((f) => {
+      const on = f.product_ids.includes(id);
+      // A special offer is for one product, so picking another replaces it.
+      if (f.kind === 'special') return { ...f, product_ids: on ? [] : [id] };
+      return { ...f, product_ids: on ? f.product_ids.filter((x) => x !== id) : [...f.product_ids, id] };
+    });
+  }
+
+  function setKind(kind: PromotionKind) {
+    setForm((f) => ({ ...f, kind, product_ids: kind === 'special' ? f.product_ids.slice(0, 1) : f.product_ids }));
   }
 
   async function onImage(file: File | undefined) {
@@ -94,6 +101,8 @@ export default function Promotions() {
     const p = Number(price);
     if (!form.title.trim()) return notify('Give the offer a name');
     if (!price || !Number.isFinite(p) || p < 0) return notify('Enter the offer price');
+    if (form.kind === 'combo' && form.product_ids.length < 2) return notify('Pick at least two products for a combo');
+    if (form.kind === 'special' && form.product_ids.length !== 1) return notify('Pick the product this special offer is for');
     const cp = comparePrice.trim() ? Number(comparePrice) : itemsTotal || null;
     if (form.starts_on && form.ends_on && form.ends_on < form.starts_on) return notify('The end date must be after the start date');
     setBusy(true);
@@ -140,7 +149,7 @@ export default function Promotions() {
   return (
     <div className="stack">
       <div className="row">
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Combo offers</h1>
+        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Special &amp; combo offers</h1>
         {!editing && !error && (
           <button className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => open(null)}>
             + New offer
@@ -148,28 +157,42 @@ export default function Promotions() {
         )}
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        Offers appear in a "Special offers" section on the shop only while at least one is switched on and inside its dates. With no
-        offers running, the section is hidden.
+        Every offer that is switched on and inside its dates is the first thing customers see: a showcase at the very top of the
+        shop and a pop-up when they arrive. With no offers running, both are hidden.
       </p>
       {error && <p className="error">{error}</p>}
 
       {editing && (
         <form className="promo-form stack" onSubmit={save}>
+          <div className="field">
+            <span className="small caps muted">Offer type</span>
+            <div className="kind-pick">
+              <button type="button" className={form.kind === 'combo' ? 'on' : ''} onClick={() => setKind('combo')}>
+                <strong>Combo offer</strong>
+                <small>Two or more products together for one price</small>
+              </button>
+              <button type="button" className={form.kind === 'special' ? 'on' : ''} onClick={() => setKind('special')}>
+                <strong>Special offer</strong>
+                <small>A reduced price on one product</small>
+              </button>
+            </div>
+          </div>
+
           <label className="field">
             <span>Offer name</span>
-            <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Tee + Shorts combo" />
+            <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={form.kind === 'combo' ? 'Tee + Shorts combo' : 'Linen shirt, this week only'} />
           </label>
           <label className="field">
             <span>Description</span>
-            <textarea className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Any tee with any shorts. Pick your sizes on WhatsApp." />
+            <textarea className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={form.kind === 'combo' ? 'Any tee with any shorts. Pick your sizes on WhatsApp.' : 'This week only, while sizes last.'} />
           </label>
 
           <div className="field">
-            <span className="small caps muted">Products in this combo</span>
+            <span className="small caps muted">{form.kind === 'combo' ? 'Products in this combo (pick two or more)' : 'Product on offer (pick one)'}</span>
             <div className="promo-products">
               {products.map((p) => (
                 <label key={p.id} className={`promo-product ${form.product_ids.includes(p.id) ? 'on' : ''}`}>
-                  <input type="checkbox" checked={form.product_ids.includes(p.id)} onChange={() => toggleProduct(p.id)} />
+                  <input type={form.kind === 'special' ? 'radio' : 'checkbox'} name="promo-product" checked={form.product_ids.includes(p.id)} onChange={() => toggleProduct(p.id)} />
                   {p.images[0] && <img src={p.images[0]} alt="" />}
                   <span>
                     {p.name}
@@ -194,7 +217,7 @@ export default function Promotions() {
                 inputMode="decimal"
                 value={comparePrice}
                 onChange={(e) => setComparePrice(e.target.value)}
-                placeholder={itemsTotal ? `${itemsTotal} (items total)` : ''}
+                placeholder={itemsTotal ? `${itemsTotal} (${form.kind === 'combo' ? 'items total' : 'its normal price'})` : ''}
               />
             </label>
           </div>
@@ -259,7 +282,9 @@ export default function Promotions() {
                   <tr key={p.id}>
                     <td>
                       <strong>{p.title}</strong>
-                      <div className="small muted">{p.product_ids.length} products</div>
+                      <div className="small muted">
+                        {p.kind === 'special' ? 'Special offer' : `Combo of ${p.product_ids.length}`}
+                      </div>
                     </td>
                     <td>
                       {money(p.price)}
