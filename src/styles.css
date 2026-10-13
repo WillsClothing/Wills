@@ -666,3 +666,10 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 }
 .color-pick button.out { opacity: 0.35; cursor: not-allowed; }
 .color-pick button.out::after { content: ''; position: absolute; left: 4px; right: 4px; top: 50%; height: 1px; background: var(--black); transform: rotate(-45deg); }
+
+/* Admin shortcut on the product page */
+.admin-edit-link {
+  float: right;
+  font-weight: 600;
+  color: var(--gold-deep);
+}
