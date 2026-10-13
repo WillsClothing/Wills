@@ -12,8 +12,15 @@ export interface SalesLine {
   value: number;
 }
 
-export interface DailyReport {
+export interface DayTotal {
   date: string;
+  units: number;
+  value: number;
+}
+
+export interface Report {
+  start: string;
+  end: string;
   unitsSold: number;
   salesValue: number;
   orders: number;
@@ -22,6 +29,7 @@ export interface DailyReport {
   damaged: number;
   corrections: number;
   sales: SalesLine[];
+  byDay: DayTotal[];
   byReason: { reason: string; changes: number; units: number }[];
   log: InventoryLogEntry[];
   stock: { product: string; category: string; status: string; size: string; stock: number }[];
@@ -29,19 +37,62 @@ export interface DailyReport {
 
 const isSale = (l: InventoryLogEntry) => l.change < 0 && SALE_REASONS.includes(l.reason);
 
-/** Local midnight-to-midnight for a yyyy-mm-dd date. */
-export function dayRange(date: string): [Date, Date] {
-  const [y, m, d] = date.split('-').map(Number);
-  return [new Date(y, m - 1, d), new Date(y, m - 1, d + 1)];
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** yyyy-mm-dd in local time. */
+export function dateString(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function todayString(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return dateString(new Date());
 }
 
-export function buildDailyReport(date: string, log: InventoryLogEntry[], products: Product[]): DailyReport {
+function parseDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Local midnight at the start of `start` to midnight after `end` (both yyyy-mm-dd, inclusive). */
+export function periodRange(start: string, end: string): [Date, Date] {
+  const to = parseDate(end);
+  return [parseDate(start), new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1)];
+}
+
+export type Preset = 'today' | 'yesterday' | 'week' | 'last7' | 'month' | 'lastMonth';
+
+export const PRESETS: { key: Preset; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'week', label: 'This week' },
+  { key: 'last7', label: 'Last 7 days' },
+  { key: 'month', label: 'This month' },
+  { key: 'lastMonth', label: 'Last month' },
+];
+
+/** Start and end dates for a quick time frame. Weeks start on Monday. */
+export function presetRange(preset: Preset, now = new Date()): [string, string] {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const day = (offset: number) => dateString(new Date(y, m, d + offset));
+  switch (preset) {
+    case 'today':
+      return [day(0), day(0)];
+    case 'yesterday':
+      return [day(-1), day(-1)];
+    case 'week':
+      return [day(-((now.getDay() + 6) % 7)), day(0)];
+    case 'last7':
+      return [day(-6), day(0)];
+    case 'month':
+      return [dateString(new Date(y, m, 1)), day(0)];
+    case 'lastMonth':
+      return [dateString(new Date(y, m - 1, 1)), dateString(new Date(y, m, 0))];
+  }
+}
+
+export function buildReport(start: string, end: string, log: InventoryLogEntry[], products: Product[]): Report {
   const byId = new Map(products.map((p) => [p.id, p]));
   const byName = new Map(products.map((p) => [p.name, p]));
   const priceOf = (l: InventoryLogEntry) => (l.product_id && byId.get(l.product_id)?.price) || byName.get(l.product_name)?.price || 0;
@@ -68,8 +119,18 @@ export function buildDailyReport(date: string, log: InventoryLogEntry[], product
   const sumWhere = (reason: string, sign: 1 | -1) =>
     log.filter((l) => l.reason === reason && Math.sign(l.change) === sign).reduce((n, l) => n + Math.abs(l.change), 0);
 
+  const dayMap = new Map<string, DayTotal>();
+  for (const l of log.filter(isSale)) {
+    const date = dateString(new Date(l.created_at));
+    const t = dayMap.get(date) ?? { date, units: 0, value: 0 };
+    t.units += -l.change;
+    t.value += -l.change * priceOf(l);
+    dayMap.set(date, t);
+  }
+
   return {
-    date,
+    start,
+    end,
     unitsSold: sales.reduce((n, s) => n + s.units, 0),
     salesValue: sales.reduce((n, s) => n + s.value, 0),
     orders: log.filter(isSale).length,
@@ -78,6 +139,7 @@ export function buildDailyReport(date: string, log: InventoryLogEntry[], product
     damaged: sumWhere('Damaged', -1),
     corrections: log.filter((l) => l.reason === 'Stock count correction').length,
     sales,
+    byDay: [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
     byReason: [...reasonMap.values()],
     log,
     stock: products.flatMap((p) =>
@@ -92,10 +154,11 @@ function cell(v: string | number): string {
 }
 
 /** A CSV with labelled sections; opens directly in Excel or Google Sheets. */
-export function reportToCsv(r: DailyReport, storeName: string, currency: string): string {
+export function reportToCsv(r: Report, storeName: string, currency: string): string {
   const rows: (string | number)[][] = [];
   const blank = () => rows.push([]);
-  rows.push([`${storeName} daily report`, r.date]);
+  const period = r.start === r.end ? r.start : `${r.start} to ${r.end}`;
+  rows.push([`${storeName} sales report`, period]);
   rows.push(['Generated', new Date().toLocaleString()]);
   blank();
   rows.push(['SUMMARY']);
@@ -113,14 +176,21 @@ export function reportToCsv(r: DailyReport, storeName: string, currency: string)
   r.sales.forEach((s) => rows.push([s.product, s.size, s.units, s.unitPrice, s.value]));
   if (!r.sales.length) rows.push(['No sales recorded']);
   blank();
+  if (r.start !== r.end) {
+    rows.push(['SALES BY DAY']);
+    rows.push(['Date', 'Units', `Value (${currency})`]);
+    r.byDay.forEach((d) => rows.push([d.date, d.units, d.value]));
+    if (!r.byDay.length) rows.push(['No sales recorded']);
+    blank();
+  }
   rows.push(['CHANGES BY REASON']);
   rows.push(['Reason', 'Changes', 'Net units']);
   r.byReason.forEach((b) => rows.push([b.reason, b.changes, b.units]));
   blank();
   rows.push(['ALL STOCK CHANGES']);
-  rows.push(['Time', 'Product', 'Size', 'Change', 'New stock', 'Reason']);
-  r.log.forEach((l) => rows.push([new Date(l.created_at).toLocaleTimeString(), l.product_name, l.size, l.change, l.new_stock, l.reason]));
-  if (!r.log.length) rows.push(['No stock changes on this day']);
+  rows.push(['Date', 'Time', 'Product', 'Size', 'Change', 'New stock', 'Reason']);
+  r.log.forEach((l) => rows.push([dateString(new Date(l.created_at)), new Date(l.created_at).toLocaleTimeString(), l.product_name, l.size, l.change, l.new_stock, l.reason]));
+  if (!r.log.length) rows.push(['No stock changes in this period']);
   blank();
   rows.push(['STOCK AT TIME OF DOWNLOAD']);
   rows.push(['Product', 'Type', 'Status', 'Size', 'In stock']);

@@ -444,3 +444,4 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .report-tile { border: 1px solid var(--gray-200); border-top: 2px solid var(--gold); padding: 14px 16px; display: grid; gap: 6px; background: var(--white); }
 .report-tile span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-500); }
 .report-tile strong { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.1; }
+.report-presets { display: flex; flex-wrap: wrap; gap: 8px; }
