@@ -65,8 +65,8 @@ export default function Reports() {
       <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Sales report</h1>
       <p className="small muted" style={{ margin: 0 }}>
         Pick a time frame, or a start and end date, to see what sold and every stock change, then download it as a spreadsheet (CSV, opens in Excel or Google Sheets). Sales
-        are the stock you remove in Inventory with the reason {SALE_REASONS.map((r) => `"${r}"`).join(' or ')}, valued at each product's
-        current price.
+        are the pieces on your invoices (less any you cancel), plus stock you remove in Inventory with the reason{' '}
+        {SALE_REASONS.map((r) => `"${r}"`).join(' or ')}, valued at each product's current price.
       </p>
 
       <div className="report-presets" role="group" aria-label="Time frame">

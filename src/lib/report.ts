@@ -35,7 +35,12 @@ export interface Report {
   stock: { product: string; category: string; status: string; size: string; stock: number }[];
 }
 
-const isSale = (l: InventoryLogEntry) => l.change < 0 && SALE_REASONS.includes(l.reason);
+/** Invoices log as "Invoice WC-INV-0001" when made and "Invoice WC-INV-0001 cancelled" when cancelled. */
+const isInvoice = (l: InventoryLogEntry) => /^Invoice WC-INV-\d+( cancelled)?$/.test(l.reason);
+const reasonGroup = (reason: string) => (/^Invoice .* cancelled$/.test(reason) ? 'Invoice cancelled' : /^Invoice /.test(reason) ? 'Invoice' : reason);
+
+// A cancelled invoice gives its pieces back, so it counts against sales (a positive change undoes the sale).
+const isSale = (l: InventoryLogEntry) => (l.change < 0 && SALE_REASONS.includes(l.reason)) || isInvoice(l);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -105,11 +110,11 @@ export function buildReport(start: string, end: string, log: InventoryLogEntry[]
     line.value = line.units * line.unitPrice;
     salesMap.set(key, line);
   }
-  const sales = [...salesMap.values()].sort((a, b) => b.value - a.value || a.product.localeCompare(b.product));
+  const sales = [...salesMap.values()].filter((s) => s.units > 0).sort((a, b) => b.value - a.value || a.product.localeCompare(b.product));
 
   const reasonMap = new Map<string, { reason: string; changes: number; units: number }>();
   for (const l of log) {
-    const reason = l.reason || 'Other';
+    const reason = reasonGroup(l.reason) || 'Other';
     const r = reasonMap.get(reason) ?? { reason, changes: 0, units: 0 };
     r.changes += 1;
     r.units += l.change;
@@ -133,7 +138,7 @@ export function buildReport(start: string, end: string, log: InventoryLogEntry[]
     end,
     unitsSold: sales.reduce((n, s) => n + s.units, 0),
     salesValue: sales.reduce((n, s) => n + s.value, 0),
-    orders: log.filter(isSale).length,
+    orders: log.filter((l) => isSale(l) && l.change < 0).length - log.filter((l) => isInvoice(l) && l.change > 0).length,
     restocked: sumWhere('Restock', 1),
     returned: sumWhere('Return', 1),
     damaged: sumWhere('Damaged', -1),
