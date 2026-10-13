@@ -454,7 +454,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .report-tile strong { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; line-height: 1.1; }
 .report-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* ---------- Offers spotlight: first thing on the shop while a promotion is live ---------- */
+/* ---------- Offers: shared pieces for the pop-up and the offers drawer ---------- */
 .offer-media { position: relative; background: var(--black); display: grid; overflow: hidden; }
 .offer-media.n2 { grid-template-columns: 1fr 1fr; }
 .offer-media.n3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -474,32 +474,42 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .spot-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .spot-actions .btn { gap: 8px; }
 
-.spotlight { background: var(--black); color: var(--on-ink); padding: 40px 0 32px; border-bottom: 1px solid var(--ink-line); position: relative; overflow: hidden; }
-.spotlight::before { content: ''; position: absolute; inset: 0; background: radial-gradient(60% 80% at 80% 20%, rgba(216, 184, 112, 0.14), transparent 70%); pointer-events: none; }
-.spot-track { display: grid; position: relative; }
-.spot-slide { grid-area: 1 / 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: clamp(24px, 5vw, 64px); align-items: center; opacity: 0; visibility: hidden; transform: translateX(24px); transition: opacity 0.8s var(--ease), transform 0.8s var(--ease), visibility 0.8s; }
-.spot-slide.on { opacity: 1; visibility: visible; transform: none; }
-.spot-slide .offer-media { aspect-ratio: 5 / 4; border: 1px solid var(--ink-line); }
-.spot-slide.on .offer-media img { animation: spot-zoom 7s var(--ease) both; }
-@keyframes spot-zoom { from { transform: scale(1.08); } to { transform: none; } }
-.spot-body h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 5vw, 3.8rem); line-height: 1.02; margin: 0 0 16px; color: var(--on-ink); }
-.spot-slide.on .spot-body > * { animation: spot-in 0.9s var(--ease) both; }
-.spot-slide.on .spot-body > :nth-child(2) { animation-delay: 0.08s; }
-.spot-slide.on .spot-body > :nth-child(3) { animation-delay: 0.16s; }
-.spot-slide.on .spot-body > :nth-child(4) { animation-delay: 0.24s; }
-.spot-slide.on .spot-body > :nth-child(n + 5) { animation-delay: 0.32s; }
+/* Offers tab + drawer (left edge, every shop page, only while an offer is live) */
+.offer-tab { position: fixed; left: 0; top: 50%; z-index: 40; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 9px 12px; background: var(--black); color: var(--gold); border: 1px solid var(--gold); border-left: 0; border-radius: 0 14px 14px 0; cursor: pointer; box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.5); transition: transform 0.5s var(--ease), padding 0.4s var(--ease), background 0.4s, color 0.4s; animation: tab-in 0.9s 1.2s var(--ease) both; overflow: hidden; }
+.offer-tab::after { content: ''; position: absolute; inset: -40% 0; background: linear-gradient(180deg, transparent, rgba(216, 184, 112, 0.35), transparent); transform: translateY(-100%); animation: tab-shine 3.6s 2.4s ease-in-out infinite; pointer-events: none; }
+.offer-tab:hover { padding-left: 14px; background: var(--gold); color: var(--black); }
+.offer-tab.hide { transform: translate(-110%, -50%); }
+.offer-tab-text { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; letter-spacing: 4px; text-transform: uppercase; }
+.offer-tab-count { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 500; position: relative; }
+.offer-tab-count::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--gold); animation: tab-ping 2.4s ease-out infinite; }
+.offer-tab:hover .offer-tab-count { background: var(--black); color: var(--gold); }
+.offer-tab svg { width: 16px; height: 16px; }
+@keyframes tab-in { from { transform: translate(-110%, -50%); } }
+@keyframes tab-shine { 0%, 60% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+@keyframes tab-ping { from { opacity: 0.8; transform: scale(0.9); } to { opacity: 0; transform: scale(1.6); } }
+
+.offer-drawer-wrap { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.offer-drawer-wrap.open { pointer-events: auto; }
+.offer-drawer-backdrop { position: absolute; inset: 0; background: rgba(11, 11, 11, 0.55); backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.5s var(--ease); }
+.offer-drawer-wrap.open .offer-drawer-backdrop { opacity: 1; }
+.offer-drawer { position: absolute; left: 0; top: 0; bottom: 0; width: min(420px, 92vw); background: var(--black); color: var(--on-ink); border-right: 1px solid var(--gold); display: flex; flex-direction: column; transform: translateX(-102%); transition: transform 0.6s var(--ease); }
+.offer-drawer-wrap.open .offer-drawer { transform: none; }
+.offer-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 26px 24px 18px; border-bottom: 1px solid var(--ink-line); }
+.offer-drawer-head h2 { font-family: var(--serif); font-weight: 500; font-size: 2.4rem; line-height: 1; margin: 0; color: var(--on-ink); }
+.offer-drawer-head .spot-kind { margin-bottom: 8px; }
+.offer-drawer-head .offer-pop-close { position: static; }
+.offer-drawer-list { overflow-y: auto; padding: 20px 24px 32px; display: grid; gap: 22px; }
+.dock-card { border: 1px solid var(--ink-line); animation: spot-in 0.7s var(--ease) both; }
+.dock-card:nth-child(2) { animation-delay: 0.1s; }
+.dock-card:nth-child(n + 3) { animation-delay: 0.2s; }
+.dock-card .offer-media { aspect-ratio: 4 / 3; }
+.dock-card-body { padding: 18px 18px 20px; }
+.dock-card-body h3 { font-family: var(--serif); font-weight: 500; font-size: 1.7rem; line-height: 1.05; margin: 0 0 10px; color: var(--on-ink); }
+.dock-card .offer-price { margin-bottom: 16px; }
+.dock-card .offer-price strong { font-size: 2rem; }
+.spot-desc { font-size: 0.9rem; }
 @keyframes spot-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.spot-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 26px; }
-.spot-nav > button { background: none; border: 1px solid var(--ink-line); color: var(--on-ink); width: 36px; height: 36px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; transition: border-color 0.3s, color 0.3s; }
-.spot-nav > button:hover { border-color: var(--gold); color: var(--gold); }
-.spot-dots { display: flex; gap: 8px; }
-.spot-dots button { width: 8px; height: 8px; padding: 0; border-radius: 999px; border: 0; background: rgba(255, 255, 255, 0.3); cursor: pointer; transition: width 0.4s var(--ease), background 0.4s; }
-.spot-dots button.on { width: 28px; background: var(--gold); }
-@media (max-width: 760px) {
-  .spotlight { padding: 20px 0 24px; }
-  .spot-slide { grid-template-columns: 1fr; gap: 20px; }
-  .spot-slide .offer-media { aspect-ratio: 4 / 3; }
-}
+@media (max-width: 640px) { .offer-tab { padding: 10px 7px; gap: 8px; } }
 
 /* First-visit offer popup */
 .offer-pop-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(11, 11, 11, 0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: pop-fade 0.4s var(--ease) both; }
@@ -519,7 +529,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
   .offer-pop-body { padding: 24px 22px 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spot-slide, .spot-slide.on .spot-body > *, .spot-slide.on .offer-media img, .offer-pop, .offer-pop-backdrop { animation: none; transition: none; }
+  .offer-tab, .offer-tab::after, .offer-tab-count::before, .dock-card, .offer-drawer, .offer-pop, .offer-pop-backdrop { animation: none; transition: none; }
 }
 
 /* ---------- Admin: promotions ---------- */
