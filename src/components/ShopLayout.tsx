@@ -6,6 +6,7 @@ import { isConfigured } from '../lib/supabase';
 import { whatsappLink } from '../lib/whatsapp';
 import { TruckIcon } from './FreeDelivery';
 import Logo from './Logo';
+import Socials from './Socials';
 import { OfferDock, OfferPopup } from './Offers';
 import WhatsAppIcon from './WhatsAppIcon';
 import WillsBot from './WillsBot';
@@ -68,8 +69,14 @@ export default function ShopLayout() {
 
       <footer className="footer">
         <div className="container stack">
-          <div className="logo">
-            <Logo />
+          <div className="footer-top">
+            <div className="logo">
+              <Logo />
+            </div>
+            <div className="footer-follow">
+              <span className="small caps">Follow us</span>
+              <Socials />
+            </div>
           </div>
           <p>
             Orders are confirmed on WhatsApp. Pay by Cash on Delivery or bank transfer.
