@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WhatsAppIcon from '../components/WhatsAppIcon';
-import { resolveCart, useCart } from '../lib/cart';
+import { resolveCart, useCart, lineKey } from '../lib/cart';
+import { isLight } from '../lib/colors';
 import { formatPrice } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { PaymentMethod } from '../lib/types';
@@ -60,7 +61,7 @@ export default function CartPage() {
           {items.map((item) => {
             const cover = item.product?.images[0];
             return (
-              <div className="cart-item" key={item.sizeId}>
+              <div className="cart-item" key={lineKey(item)}>
                 <Link to={`/product/${item.productId}`} className="thumb">
                   {cover ? <img src={cover} alt="" /> : <div className="img-placeholder">—</div>}
                 </Link>
@@ -68,6 +69,18 @@ export default function CartPage() {
                   <div>
                     <strong>{item.product?.name ?? 'No longer available'}</strong>
                     <div className="small muted">
+                      {item.color && (
+                        <>
+                          <span className="cart-color">
+                            <span
+                              className={`color-dot ${isLight(item.product?.colors.find((c) => c.name === item.color)?.hex ?? '') ? 'light' : ''}`}
+                              style={{ background: item.product?.colors.find((c) => c.name === item.color)?.hex ?? 'transparent' }}
+                            />
+                            {item.color}
+                          </span>{' '}
+                          ·{' '}
+                        </>
+                      )}
                       Size {item.size} · {formatPrice(item.product?.price ?? 0, settings.currency)}
                     </div>
                     {!loading && !item.orderable && (
@@ -81,7 +94,7 @@ export default function CartPage() {
                   <div className="row">
                     <div className="qty">
                       <button
-                        onClick={() => cart.setQuantity(item.sizeId, item.quantity - 1)}
+                        onClick={() => cart.setQuantity(lineKey(item), item.quantity - 1)}
                         disabled={item.quantity <= 1}
                         aria-label="Decrease"
                       >
@@ -89,14 +102,14 @@ export default function CartPage() {
                       </button>
                       <span>{item.quantity}</span>
                       <button
-                        onClick={() => cart.setQuantity(item.sizeId, item.quantity + 1)}
+                        onClick={() => cart.setQuantity(lineKey(item), item.quantity + 1)}
                         disabled={item.quantity >= item.available}
                         aria-label="Increase"
                       >
                         +
                       </button>
                     </div>
-                    <button className="link-btn small" onClick={() => cart.remove(item.sizeId)}>
+                    <button className="link-btn small" onClick={() => cart.remove(lineKey(item))}>
                       Remove
                     </button>
                   </div>
@@ -120,9 +133,9 @@ export default function CartPage() {
           </h2>
           <div>
             {items.map((i) => (
-              <div className="summary-row small" key={i.sizeId}>
+              <div className="summary-row small" key={lineKey(i)}>
                 <span>
-                  {i.product?.name} ({i.size}) × {i.quantity}
+                  {i.product?.name} ({[i.color, i.size].filter(Boolean).join(', ')}) × {i.quantity}
                 </span>
                 <span>{formatPrice(i.lineTotal, settings.currency)}</span>
               </div>

@@ -1,6 +1,6 @@
 import { supabase, isConfigured, IMAGE_BUCKET } from './supabase';
 import { demoProducts, demoSettings } from './demo';
-import type { InventoryLogEntry, Product, ProductStatus, Promotion, StoreSettings } from './types';
+import type { InventoryLogEntry, Product, ProductColor, ProductStatus, Promotion, StoreSettings } from './types';
 
 const PRODUCT_SELECT = '*, product_sizes(*)';
 
@@ -10,7 +10,7 @@ function db() {
 }
 
 function normalize(p: Product): Product {
-  return { ...p, price: Number(p.price), product_sizes: p.product_sizes ?? [] };
+  return { ...p, price: Number(p.price), colors: Array.isArray(p.colors) ? p.colors : [], product_sizes: p.product_sizes ?? [] };
 }
 
 // ---------------------------------------------------------------- public reads
@@ -128,6 +128,7 @@ export interface ProductInput {
   category: string;
   status: ProductStatus;
   images: string[];
+  colors: ProductColor[];
   sort_order: number;
   sizes: SizeInput[];
 }
@@ -140,17 +141,22 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
   const client = db();
   const { sizes, ...fields } = input;
 
+  // Until colors.sql has been run there is no colors column: products without colours still save.
+  const write = (row: Partial<typeof fields>) =>
+    productId
+      ? client.from('products').update(row).eq('id', productId).select('id').single()
+      : client.from('products').insert(row).select('id').single();
+
   let productId = id;
   let existing: Product | null = null;
-  if (productId) {
-    const { error } = await client.from('products').update(fields).eq('id', productId);
-    if (error) throw error;
-    existing = await fetchProduct(productId);
-  } else {
-    const { data, error } = await client.from('products').insert(fields).select('id').single();
-    if (error) throw error;
-    productId = data.id as string;
+  let { data, error } = await write(fields);
+  if (error && /colors/.test(error.message) && fields.colors.length === 0) {
+    const { colors: _unused, ...rest } = fields;
+    ({ data, error } = await write(rest));
   }
+  if (error) throw colorsHint(error);
+  if (productId) existing = await fetchProduct(productId);
+  else productId = data!.id as string;
 
   const oldSizes = existing?.product_sizes ?? [];
   const keepIds = new Set(sizes.filter((s) => s.id).map((s) => s.id));
@@ -230,8 +236,29 @@ export async function fetchInventoryLogBetween(from: Date, to: Date): Promise<In
   return data as InventoryLogEntry[];
 }
 
+function colorsHint(error: { message: string }) {
+  return /colors/.test(error.message)
+    ? new Error('Colours are not set up in the database yet. Run supabase/colors.sql in the Supabase SQL Editor, then save again.')
+    : error;
+}
+
+/** Colours the admin added beyond the presets, kept in store settings so every product can reuse them. */
+export async function fetchCustomColors(): Promise<ProductColor[]> {
+  if (!isConfigured) return [];
+  const { data, error } = await db().from('store_settings').select('custom_colors').eq('id', 1).maybeSingle();
+  if (error || !data) return [];
+  return Array.isArray(data.custom_colors) ? (data.custom_colors as ProductColor[]) : [];
+}
+
+export async function saveCustomColors(colors: ProductColor[]) {
+  const { error } = await db().from('store_settings').update({ custom_colors: colors }).eq('id', 1);
+  if (error) throw colorsHint(error);
+}
+
 export async function updateSettings(settings: StoreSettings) {
-  const { error } = await db().from('store_settings').update(settings).eq('id', 1);
+  // Saved colours are managed from the product form; never overwrite them with a stale copy.
+  const { custom_colors: _colors, ...rest } = settings as StoreSettings & { custom_colors?: unknown };
+  const { error } = await db().from('store_settings').update(rest).eq('id', 1);
   if (error) throw error;
 }
 

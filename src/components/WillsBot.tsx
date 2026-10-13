@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../lib/cart';
+import { useCart, sizeInCart } from '../lib/cart';
 import { formatPrice, sortSizes } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Product } from '../lib/types';
@@ -385,7 +385,7 @@ function ProductTile({ product: initial, size, onView }: { product: Product; siz
   const product = products.find((p) => p.id === initial.id) ?? initial;
   const open = sortSizes(product.product_sizes).filter((s) => s.stock > 0 && product.status === 'available');
   const pick = size ? open.find((s) => s.size === size) : undefined;
-  const inCart = pick ? cart.items.find((i) => i.sizeId === pick.id)?.quantity ?? 0 : 0;
+  const inCart = pick ? sizeInCart(cart.items, pick.id) : 0;
 
   function view() {
     onView();

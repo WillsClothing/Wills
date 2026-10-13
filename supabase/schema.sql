@@ -75,6 +75,12 @@ create table if not exists public.store_settings (
 );
 insert into public.store_settings (id) values (1) on conflict (id) do nothing;
 
+-- ---------- Product colours ------------------------------------------
+-- products.colors: [{"name": "Black", "hex": "#111111"}, ...] chosen per product.
+-- store_settings.custom_colors: colours the admin added beyond the built-in palette.
+alter table public.products add column if not exists colors jsonb not null default '[]'::jsonb;
+alter table public.store_settings add column if not exists custom_colors jsonb not null default '[]'::jsonb;
+
 -- ---------- updated_at trigger --------------------------------------
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$

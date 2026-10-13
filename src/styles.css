@@ -607,3 +607,33 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .socials a { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold); transition: background 0.35s var(--ease), color 0.35s var(--ease), transform 0.35s var(--ease); }
 .socials a:hover { background: var(--gold); color: var(--black); transform: translateY(-3px) rotate(-6deg); }
 .socials svg { width: 19px; height: 19px; }
+
+/* ---------- Colours ---------- */
+.swatch, .color-chip i, .color-option i, .color-dot { display: inline-block; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.color-chip i.light, .color-option i.light, .color-dot.light, .swatch.light { box-shadow: inset 0 0 0 1px var(--gray-300); }
+.color-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin: 12px 0 18px; }
+.color-option { position: relative; }
+.color-option > button:first-child { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--white); border: 1px solid var(--gray-200); cursor: pointer; font: inherit; font-size: 0.82rem; text-align: left; transition: border-color 0.2s, box-shadow 0.2s; }
+.color-option i { width: 22px; height: 22px; }
+.color-option.on > button:first-child { border-color: var(--black); box-shadow: inset 0 0 0 1px var(--black); }
+.color-option.on > button:first-child::after { content: '✓'; margin-left: auto; font-size: 0.8rem; }
+.color-forget { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gray-300); background: var(--white); font-size: 10px; cursor: pointer; display: none; }
+.color-option:hover .color-forget { display: block; }
+.color-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.color-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--black); border-radius: 999px; background: var(--white); font: inherit; font-size: 0.78rem; cursor: pointer; }
+.color-chip i { width: 16px; height: 16px; }
+.color-chip span { font-size: 9px; opacity: 0.6; }
+.color-add { display: grid; gap: 8px; border-top: 1px solid var(--gray-200); padding-top: 14px; }
+.color-add input[type='color'] { width: 44px; height: 44px; padding: 2px; border: 1px solid var(--gray-300); background: var(--white); cursor: pointer; }
+
+/* Customer side */
+.card-colors { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+.color-dot { width: 12px; height: 12px; }
+.card-colors small { font-size: 0.7rem; color: var(--gray-500); margin-left: 2px; }
+.color-pick { display: flex; flex-wrap: wrap; gap: 10px; }
+.color-pick button { position: relative; width: 38px; height: 38px; border-radius: 50%; border: 1px solid transparent; padding: 3px; background: none; cursor: pointer; transition: border-color 0.25s, transform 0.25s var(--ease); }
+.color-pick button:hover { transform: translateY(-2px); }
+.color-pick button.active { border-color: var(--black); }
+.color-pick .swatch { width: 100%; height: 100%; }
+.cart-color { display: inline-flex; align-items: center; gap: 5px; }
+.cart-color .color-dot { width: 10px; height: 10px; }

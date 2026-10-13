@@ -1,9 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteImage, fetchProduct, saveProduct, uploadImage, type SizeInput } from '../lib/api';
+import { deleteImage, fetchCustomColors, fetchProduct, saveCustomColors, saveProduct, uploadImage, type SizeInput } from '../lib/api';
 import { CATEGORIES } from '../lib/catalog';
+import { isLight, PRESET_COLORS, sameColor } from '../lib/colors';
 import { sortSizes } from '../lib/format';
-import type { ProductStatus } from '../lib/types';
+import type { ProductColor, ProductStatus } from '../lib/types';
 import { useAdmin } from './AdminLayout';
 import { STATUS_LABELS } from './StatusBadge';
 
@@ -18,6 +19,7 @@ interface FormState {
   status: ProductStatus;
   sort_order: string;
   images: string[];
+  colors: ProductColor[];
   sizes: SizeInput[];
 }
 
@@ -29,6 +31,7 @@ const EMPTY: FormState = {
   status: 'available',
   sort_order: '0',
   images: [],
+  colors: [],
   sizes: [],
 };
 
@@ -44,6 +47,12 @@ export default function ProductEditor() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [customColors, setCustomColors] = useState<ProductColor[]>([]);
+  const [newColor, setNewColor] = useState<ProductColor>({ name: '', hex: '#c8a96a' });
+
+  useEffect(() => {
+    fetchCustomColors().then(setCustomColors);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -61,6 +70,7 @@ export default function ProductEditor() {
           status: p.status,
           sort_order: String(p.sort_order),
           images: p.images,
+          colors: p.colors,
           sizes: sortSizes(p.product_sizes).map((s) => ({ id: s.id, size: s.size, stock: s.stock })),
         });
       })
@@ -90,6 +100,32 @@ export default function ProductEditor() {
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
     set('sizes', next);
+  }
+
+  function toggleColor(c: ProductColor) {
+    const on = form.colors.some((x) => sameColor(x.name, c.name));
+    set('colors', on ? form.colors.filter((x) => !sameColor(x.name, c.name)) : [...form.colors, c]);
+  }
+
+  async function addCustomColor() {
+    const name = newColor.name.trim();
+    if (!name) return notify('Give the colour a name, e.g. Dusty Rose');
+    const color = { name, hex: newColor.hex };
+    const known = [...PRESET_COLORS, ...customColors].find((c) => sameColor(c.name, name));
+    if (!known) {
+      const next = [...customColors, color];
+      setCustomColors(next);
+      saveCustomColors(next).catch((e) => notify(e instanceof Error ? e.message : 'Could not save the colour for later'));
+    }
+    if (!form.colors.some((c) => sameColor(c.name, name))) set('colors', [...form.colors, known ?? color]);
+    setNewColor({ name: '', hex: newColor.hex });
+  }
+
+  function forgetCustomColor(c: ProductColor) {
+    if (!confirm(`Remove "${c.name}" from your saved colours? Products that already use it keep it.`)) return;
+    const next = customColors.filter((x) => !sameColor(x.name, c.name));
+    setCustomColors(next);
+    saveCustomColors(next).catch((e) => notify(e instanceof Error ? e.message : 'Could not update saved colours'));
   }
 
   async function onFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -155,6 +191,7 @@ export default function ProductEditor() {
         status: form.status,
         sort_order: Number(form.sort_order) || 0,
         images: form.images,
+        colors: form.colors,
         sizes: form.sizes,
       });
       await Promise.all(removedImages.map((u) => deleteImage(u).catch(() => undefined)));
@@ -264,6 +301,66 @@ export default function ProductEditor() {
         <p className="small muted" style={{ marginBottom: 0 }}>
           Stock is only ever changed by admins. Customer carts never reduce it. Changes here are saved to the inventory log.
         </p>
+      </section>
+
+      <section className="panel">
+        <h2>Colours</h2>
+        <p className="small muted" style={{ marginTop: 0 }}>
+          Tap the colours this product comes in. Customers only see the ones you pick here. Leave all off if there is no colour choice.
+        </p>
+        {form.colors.length > 0 && (
+          <div className="color-picked">
+            <span className="small caps muted">Selected</span>
+            {form.colors.map((c) => (
+              <button type="button" key={c.name} className="color-chip on" onClick={() => toggleColor(c)} title="Remove">
+                <i className={isLight(c.hex) ? 'light' : ''} style={{ background: c.hex }} />
+                {c.name} <span aria-hidden="true">✕</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="color-palette">
+          {[...PRESET_COLORS, ...customColors].map((c) => {
+            const on = form.colors.some((x) => sameColor(x.name, c.name));
+            const custom = !PRESET_COLORS.includes(c);
+            return (
+              <div key={c.name} className={`color-option ${on ? 'on' : ''}`}>
+                <button type="button" onClick={() => toggleColor(c)} aria-pressed={on}>
+                  <i className={isLight(c.hex) ? 'light' : ''} style={{ background: c.hex }} />
+                  <span>{c.name}</span>
+                </button>
+                {custom && (
+                  <button type="button" className="color-forget" onClick={() => forgetCustomColor(c)} aria-label={`Remove saved colour ${c.name}`}>
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="color-add">
+          <span className="small caps muted">Add your own colour</span>
+          <div className="row" style={{ gap: 8 }}>
+            <input type="color" value={newColor.hex} onChange={(e) => setNewColor({ ...newColor, hex: e.target.value })} aria-label="Pick the colour" />
+            <input
+              className="input"
+              placeholder="Colour name, e.g. Dusty Rose"
+              value={newColor.name}
+              onChange={(e) => setNewColor({ ...newColor, name: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addCustomColor();
+                }
+              }}
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <button type="button" className="btn btn-outline btn-sm" onClick={addCustomColor}>
+              + Add colour
+            </button>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>Colours you add are saved to the palette, so you can reuse them on other products.</p>
+        </div>
       </section>
 
       <section className="panel">

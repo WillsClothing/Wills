@@ -24,6 +24,11 @@ export function whatsappLink(number: string, text?: string): string {
   return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
 
+function colorPart(i: ResolvedCartItem): string {
+  if (i.color) return `Colour: ${i.color} | `;
+  return i.product?.colors.length ? 'Colour: please confirm | ' : '';
+}
+
 export function buildOrderMessage(
   items: ResolvedCartItem[],
   payment: PaymentMethod,
@@ -34,7 +39,7 @@ export function buildOrderMessage(
   const total = items.reduce((sum, i) => sum + i.lineTotal, 0);
   const lines = items.map(
     (i, n) =>
-      `${n + 1}. ${i.product?.name ?? 'Item'}\n   Size: ${i.size} | Qty: ${i.quantity} | ${formatPrice(
+      `${n + 1}. ${i.product?.name ?? 'Item'}\n   ${colorPart(i)}Size: ${i.size} | Qty: ${i.quantity} | ${formatPrice(
         i.product?.price ?? 0,
         c,
       )} each = ${formatPrice(i.lineTotal, c)}`,
