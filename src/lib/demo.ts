@@ -28,6 +28,7 @@ function product(
     price,
     category,
     status,
+    sku: null,
     images: [svg(name.toUpperCase(), shade)],
     colors: [],
     sort_order: 0,
@@ -37,8 +38,11 @@ function product(
       id: `${id}-${size}`,
       product_id: id,
       size,
+      color: '',
       stock: qty,
       sort_order: i,
+      sku: '',
+      barcode: null,
     })),
   };
 }

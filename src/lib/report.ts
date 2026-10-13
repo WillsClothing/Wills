@@ -1,4 +1,4 @@
-import { sortSizes } from './format';
+import { sortSizes, variantLabel } from './format';
 import type { InventoryLogEntry, Product } from './types';
 
 /** Stock removed with one of these reasons counts as a sale in the report. */
@@ -143,7 +143,7 @@ export function buildReport(start: string, end: string, log: InventoryLogEntry[]
     byReason: [...reasonMap.values()],
     log,
     stock: products.flatMap((p) =>
-      sortSizes(p.product_sizes).map((s) => ({ product: p.name, category: p.category, status: p.status, size: s.size, stock: s.stock })),
+      sortSizes(p.product_sizes).map((s) => ({ product: p.name, category: p.category, status: p.status, size: variantLabel(s), stock: s.stock })),
     ),
   };
 }

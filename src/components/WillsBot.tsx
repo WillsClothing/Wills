@@ -384,7 +384,8 @@ function ProductTile({ product: initial, size, onView }: { product: Product; siz
   const [note, setNote] = useState('');
   const product = products.find((p) => p.id === initial.id) ?? initial;
   const open = sortSizes(product.product_sizes).filter((s) => s.stock > 0 && product.status === 'available');
-  const pick = size ? open.find((s) => s.size === size) : undefined;
+  // Products with colours need a colour choice, which happens on the product page.
+  const pick = size && !product.colors.length ? open.find((s) => s.size === size) : undefined;
   const inCart = pick ? sizeInCart(cart.items, pick.id) : 0;
 
   function view() {
@@ -406,7 +407,7 @@ function ProductTile({ product: initial, size, onView }: { product: Product; siz
       <div className="bot-tile-body">
         <strong>{product.name}</strong>
         <span className="bot-price">{formatPrice(product.price, settings.currency)}</span>
-        <span className="small muted">{open.length ? `In stock: ${open.map((s) => s.size).join(', ')}` : 'Sold out'}</span>
+        <span className="small muted">{open.length ? `In stock: ${[...new Set(open.map((s) => s.size))].join(', ')}` : 'Sold out'}</span>
         <div className="row" style={{ gap: 6, marginTop: 6 }}>
           {pick && (
             <button type="button" className="btn btn-sm" onClick={add} disabled={inCart >= pick.stock}>
@@ -414,7 +415,7 @@ function ProductTile({ product: initial, size, onView }: { product: Product; siz
             </button>
           )}
           <button type="button" className="btn btn-sm btn-outline" onClick={view}>
-            View
+            {product.colors.length && open.length ? 'Choose colour' : 'View'}
           </button>
         </div>
         {note && <span className="small bot-note">{note}</span>}

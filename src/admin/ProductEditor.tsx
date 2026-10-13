@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteImage, fetchCustomColors, fetchProduct, saveCustomColors, saveProduct, uploadImage, type SizeInput } from '../lib/api';
 import { CATEGORIES } from '../lib/catalog';
 import { isLight, PRESET_COLORS, sameColor } from '../lib/colors';
-import { sortSizes } from '../lib/format';
-import type { ProductColor, ProductStatus } from '../lib/types';
+import { sortSizes, uniqueSizes } from '../lib/format';
+import Barcode from '../components/Barcode';
+import LabelSheet from './LabelSheet';
+import type { ProductColor, ProductSize, ProductStatus } from '../lib/types';
 import { useAdmin } from './AdminLayout';
 import { STATUS_LABELS } from './StatusBadge';
 
@@ -20,8 +22,16 @@ interface FormState {
   sort_order: string;
   images: string[];
   colors: ProductColor[];
-  sizes: SizeInput[];
+  /** Size names in display order. */
+  sizes: string[];
+  /** Stock per colour + size (see cellKey). */
+  stock: Record<string, number>;
+  /** Existing variant ids per colour + size, so edits keep their SKU, barcode and history. */
+  ids: Record<string, string>;
 }
+
+/** Stock grid cell for a colour ('' = no colour) and size. */
+const cellKey = (color: string, size: string) => `${color.toLowerCase()}\u0000${size.toLowerCase()}`;
 
 const EMPTY: FormState = {
   name: '',
@@ -33,6 +43,8 @@ const EMPTY: FormState = {
   images: [],
   colors: [],
   sizes: [],
+  stock: {},
+  ids: {},
 };
 
 export default function ProductEditor() {
@@ -49,10 +61,16 @@ export default function ProductEditor() {
   const [error, setError] = useState<string | null>(null);
   const [customColors, setCustomColors] = useState<ProductColor[]>([]);
   const [newColor, setNewColor] = useState<ProductColor>({ name: '', hex: '#c8a96a' });
+  const [variants, setVariants] = useState<ProductSize[]>([]);
+  const [productSku, setProductSku] = useState<string | null>(null);
+  const [labelsPerStock, setLabelsPerStock] = useState(false);
+  const [customSize, setCustomSize] = useState('');
 
   useEffect(() => {
     fetchCustomColors().then(setCustomColors);
   }, []);
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -62,6 +80,22 @@ export default function ProductEditor() {
           setError('Product not found');
           return;
         }
+        // Variants saved before colours existed have no colour: give them to the first colour so their stock is kept.
+        const rows = sortSizes(p.product_sizes).map((v) =>
+          !v.color && p.colors.length && p.product_sizes.every((x) => !x.color) ? { ...v, color: p.colors[0].name } : v,
+        );
+        const colors = [...p.colors];
+        for (const v of rows) {
+          if (v.color && !colors.some((c) => sameColor(c.name, v.color))) colors.push({ name: v.color, hex: '#9a9a9a' });
+        }
+        const stock: Record<string, number> = {};
+        const ids: Record<string, string> = {};
+        for (const v of rows) {
+          stock[cellKey(v.color, v.size)] = v.stock;
+          ids[cellKey(v.color, v.size)] = v.id;
+        }
+        setVariants(sortSizes(p.product_sizes));
+        setProductSku(p.sku);
         setForm({
           name: p.name,
           description: p.description,
@@ -70,28 +104,28 @@ export default function ProductEditor() {
           status: p.status,
           sort_order: String(p.sort_order),
           images: p.images,
-          colors: p.colors,
-          sizes: sortSizes(p.product_sizes).map((s) => ({ id: s.id, size: s.size, stock: s.stock })),
+          colors,
+          sizes: uniqueSizes(rows),
+          stock,
+          ids,
         });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, reloadKey]);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function updateSize(index: number, patch: Partial<SizeInput>) {
-    set(
-      'sizes',
-      form.sizes.map((s, i) => (i === index ? { ...s, ...patch } : s)),
-    );
+  function addSize(label: string) {
+    const name = label.trim();
+    if (!name || form.sizes.some((s) => s.toLowerCase() === name.toLowerCase())) return;
+    set('sizes', [...form.sizes, name]);
   }
 
-  function addSize(label = '') {
-    if (label && form.sizes.some((s) => s.size.toLowerCase() === label.toLowerCase())) return;
-    set('sizes', [...form.sizes, { size: label, stock: 0 }]);
+  function removeSize(name: string) {
+    set('sizes', form.sizes.filter((s) => s !== name));
   }
 
   function moveSize(index: number, dir: -1 | 1) {
@@ -101,6 +135,15 @@ export default function ProductEditor() {
     [next[index], next[target]] = [next[target], next[index]];
     set('sizes', next);
   }
+
+  function setStock(color: string, size: string, value: string) {
+    const n = Math.max(0, Math.floor(Number(value) || 0));
+    setForm((f) => ({ ...f, stock: { ...f.stock, [cellKey(color, size)]: n } }));
+  }
+
+  /** The colour rows of the stock grid: the chosen colours, or one row when there is no colour choice. */
+  const gridColors = form.colors.length ? form.colors.map((c) => c.name) : [''];
+  const totalUnits = gridColors.reduce((n, c) => n + form.sizes.reduce((m, sz) => m + (form.stock[cellKey(c, sz)] ?? 0), 0), 0);
 
   function toggleColor(c: ProductColor) {
     const on = form.colors.some((x) => sameColor(x.name, c.name));
@@ -172,18 +215,23 @@ export default function ProductEditor() {
     e.preventDefault();
     setError(null);
     const price = Number(form.price);
-    const labels = form.sizes.map((s) => s.size.trim().toLowerCase());
     if (!form.name.trim()) return setError('Please enter a product name.');
     if (!Number.isFinite(price) || price < 0) return setError('Please enter a valid price.');
     if (!form.category) return setError('Choose a product type.');
-    if (labels.some((l) => !l)) return setError('Every size needs a name (e.g. M), or remove the empty row.');
-    if (new Set(labels).size !== labels.length) return setError('Each size can only be listed once.');
-    if (form.sizes.some((s) => !Number.isInteger(s.stock) || s.stock < 0))
-      return setError('Stock must be a whole number of 0 or more.');
+    if (form.sizes.length === 0) return setError('Add at least one size so customers can order.');
+
+    const sizes: SizeInput[] = gridColors.flatMap((color) =>
+      form.sizes.map((size) => ({
+        id: form.ids[cellKey(color, size)],
+        size,
+        color,
+        stock: form.stock[cellKey(color, size)] ?? 0,
+      })),
+    );
 
     setSaving(true);
     try {
-      await saveProduct(id ?? null, {
+      const savedId = await saveProduct(id ?? null, {
         name: form.name.trim(),
         description: form.description.trim(),
         price,
@@ -192,11 +240,14 @@ export default function ProductEditor() {
         sort_order: Number(form.sort_order) || 0,
         images: form.images,
         colors: form.colors,
-        sizes: form.sizes,
+        sizes,
       });
       await Promise.all(removedImages.map((u) => deleteImage(u).catch(() => undefined)));
-      notify(isNew ? 'Product added' : 'Product saved');
-      navigate('/admin');
+      notify(isNew ? 'Product added. Its SKUs and barcodes are below.' : 'Product saved');
+      // Stay on the product so the SKUs and barcodes the database just issued are visible.
+      if (isNew) navigate(`/admin/products/${savedId}`, { replace: true });
+      else setReloadKey((k) => k + 1);
+      setRemovedImages([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -263,50 +314,9 @@ export default function ProductEditor() {
       </section>
 
       <section className="panel">
-        <h2>Sizes &amp; stock</h2>
-        {form.sizes.length === 0 && <p className="small muted">No sizes yet. Add at least one so customers can order.</p>}
-        {form.sizes.map((s, i) => (
-          <div className="size-row" key={s.id ?? `new-${i}`}>
-            <input className="input" value={s.size} placeholder="Size (e.g. M)" onChange={(e) => updateSize(i, { size: e.target.value })} />
-            <input
-              className="input"
-              type="number"
-              min="0"
-              step="1"
-              inputMode="numeric"
-              value={s.stock}
-              onChange={(e) => updateSize(i, { stock: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
-              aria-label={`Stock for ${s.size}`}
-            />
-            <div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => moveSize(i, -1)} aria-label="Move up">
-                ↑
-              </button>
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => set('sizes', form.sizes.filter((_, j) => j !== i))}>
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
-        <div className="row" style={{ marginTop: 12, gap: 6 }}>
-          {PRESET_SIZES.filter((p) => !form.sizes.some((s) => s.size.toLowerCase() === p.toLowerCase())).map((p) => (
-            <button type="button" key={p} className="chip" onClick={() => addSize(p)}>
-              + {p}
-            </button>
-          ))}
-          <button type="button" className="chip" onClick={() => addSize()}>
-            + Custom
-          </button>
-        </div>
-        <p className="small muted" style={{ marginBottom: 0 }}>
-          Stock is only ever changed by admins. Customer carts never reduce it. Changes here are saved to the inventory log.
-        </p>
-      </section>
-
-      <section className="panel">
         <h2>Colours</h2>
         <p className="small muted" style={{ marginTop: 0 }}>
-          Tap the colours this product comes in. Customers only see the ones you pick here. Leave all off if there is no colour choice.
+          Tap the colours this product comes in, then fill in the stock for each colour below. Customers only see the colours you pick here. Leave all off if there is no colour choice.
         </p>
         {form.colors.length > 0 && (
           <div className="color-picked">
@@ -361,6 +371,157 @@ export default function ProductEditor() {
           </div>
           <p className="small muted" style={{ margin: 0 }}>Colours you add are saved to the palette, so you can reuse them on other products.</p>
         </div>
+      </section>
+
+      <section className="panel">
+        <h2>Sizes &amp; stock</h2>
+        <p className="small muted" style={{ marginTop: 0 }}>
+          Add the sizes, then enter how many you have of each size in each colour. Customers only see sizes that are in stock in the colour they pick.
+        </p>
+        <div className="row" style={{ gap: 6 }}>
+          {form.sizes.map((sz, i) => (
+            <span key={sz} className="size-pill">
+              <button type="button" onClick={() => moveSize(i, -1)} aria-label={`Move ${sz} left`} disabled={i === 0}>
+                ‹
+              </button>
+              {sz}
+              <button type="button" onClick={() => removeSize(sz)} aria-label={`Remove size ${sz}`}>
+                ✕
+              </button>
+            </span>
+          ))}
+          {PRESET_SIZES.filter((p) => !form.sizes.some((s) => s.toLowerCase() === p.toLowerCase())).map((p) => (
+            <button type="button" key={p} className="chip" onClick={() => addSize(p)}>
+              + {p}
+            </button>
+          ))}
+          <input
+            className="input"
+            style={{ width: 140, minHeight: 34, padding: '4px 10px' }}
+            placeholder="Other size"
+            value={customSize}
+            onChange={(e) => setCustomSize(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addSize(customSize);
+                setCustomSize('');
+              }
+            }}
+            onBlur={() => {
+              addSize(customSize);
+              setCustomSize('');
+            }}
+          />
+        </div>
+
+        {form.sizes.length > 0 && (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="table stock-grid">
+              <thead>
+                <tr>
+                  <th>{form.colors.length ? 'Colour' : ''}</th>
+                  {form.sizes.map((sz) => (
+                    <th key={sz}>{sz}</th>
+                  ))}
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gridColors.map((color) => {
+                  const hex = form.colors.find((c) => c.name === color)?.hex;
+                  const rowTotal = form.sizes.reduce((n, sz) => n + (form.stock[cellKey(color, sz)] ?? 0), 0);
+                  return (
+                    <tr key={color || 'none'}>
+                      <th scope="row">
+                        {color ? (
+                          <span className="cart-color">
+                            <span className={`color-dot ${hex && isLight(hex) ? 'light' : ''}`} style={{ background: hex }} />
+                            {color}
+                          </span>
+                        ) : (
+                          <span className="small muted">Stock</span>
+                        )}
+                      </th>
+                      {form.sizes.map((sz) => (
+                        <td key={sz}>
+                          <input
+                            className="input"
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            value={form.stock[cellKey(color, sz)] ?? 0}
+                            onChange={(e) => setStock(color, sz, e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            aria-label={`Stock for ${[color, sz].filter(Boolean).join(' ')}`}
+                          />
+                        </td>
+                      ))}
+                      <td className="small" style={{ fontWeight: 500 }}>
+                        {rowTotal}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="small muted" style={{ marginBottom: 0 }}>
+          {totalUnits} {totalUnits === 1 ? 'piece' : 'pieces'} in total. Stock is only ever changed by admins and every change is saved to the inventory log.
+        </p>
+      </section>
+
+      <section className="panel">
+        <div className="row" style={{ alignItems: 'baseline' }}>
+          <h2 style={{ margin: 0 }}>SKUs &amp; barcodes</h2>
+          {productSku && <span className="small muted">Product SKU: {productSku}</span>}
+        </div>
+        {variants.length === 0 ? (
+          <p className="small muted" style={{ marginBottom: 0 }}>
+            Every size and colour gets its own SKU and EAN-13 barcode automatically when you save.
+          </p>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table className="table sku-table">
+                <thead>
+                  <tr>
+                    <th>Variant</th>
+                    <th>SKU</th>
+                    <th>Barcode (EAN-13)</th>
+                    <th>Stock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {variants.map((v) => (
+                    <tr key={v.id}>
+                      <td>{[v.color, v.size].filter(Boolean).join(' · ')}</td>
+                      <td className="mono">{v.sku || '—'}</td>
+                      <td>{v.barcode ? <Barcode code={v.barcode} height={34} /> : <span className="small muted">Run variants.sql to create</span>}</td>
+                      <td>{v.stock}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="row">
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => window.print()} disabled={!variants.some((v) => v.barcode)}>
+                Print barcode labels
+              </button>
+              <label className="row small" style={{ gap: 6 }}>
+                <input type="checkbox" checked={labelsPerStock} onChange={(e) => setLabelsPerStock(e.target.checked)} />
+                One label per piece in stock
+              </label>
+            </div>
+            <p className="small muted" style={{ marginBottom: 0 }}>
+              Barcodes use the 200 prefix that GS1 reserves for in-store use, so they scan on any EAN-13 reader without clashing with registered
+              retail barcodes. SKU format: product, colour, size (e.g. WC-TSH-1001-BLK-M). Save first to see codes for new sizes or colours.
+            </p>
+            <LabelSheet name={form.name} price={Number(form.price) || 0} variants={variants} perStock={labelsPerStock} />
+          </>
+        )}
       </section>
 
       <section className="panel">

@@ -1,11 +1,17 @@
 export type ProductStatus = 'available' | 'sold_out' | 'unavailable';
 
+/** One sellable variant: a size in a colour, with its own stock, SKU and barcode. */
 export interface ProductSize {
   id: string;
   product_id: string;
   size: string;
+  /** Colour name, '' when the product has no colour choice. */
+  color: string;
   stock: number;
   sort_order: number;
+  sku: string;
+  /** EAN-13 (prefix 200, in-store range). Null until variants.sql has been run. */
+  barcode: string | null;
 }
 
 export interface ProductColor {
@@ -15,6 +21,8 @@ export interface ProductColor {
 
 export interface Product {
   id: string;
+  /** Style code, e.g. WC-TSH-1001. Set by the database when the product is created. */
+  sku: string | null;
   name: string;
   description: string;
   price: number;

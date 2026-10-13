@@ -637,3 +637,32 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .color-pick .swatch { width: 100%; height: 100%; }
 .cart-color { display: inline-flex; align-items: center; gap: 5px; }
 .cart-color .color-dot { width: 10px; height: 10px; }
+
+/* ---------- Variants, SKUs, barcodes ---------- */
+.size-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 6px; border: 1px solid var(--black); border-radius: 999px; font-size: 0.82rem; font-weight: 500; background: var(--white); }
+.size-pill button { background: none; border: 0; cursor: pointer; font-size: 11px; opacity: 0.55; padding: 0 3px; }
+.size-pill button:hover:not(:disabled) { opacity: 1; }
+.size-pill button:disabled { opacity: 0.15; cursor: default; }
+.stock-grid th, .stock-grid td { text-align: center; white-space: nowrap; }
+.stock-grid th[scope='row'] { text-align: left; font-weight: 400; }
+.stock-grid input { width: 72px; min-height: 36px; padding: 4px 8px; text-align: center; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; letter-spacing: 0.02em; }
+.barcode { display: block; height: auto; }
+.sku-table .barcode { width: 150px; }
+.label-sheet { display: none; }
+@media print {
+  @page { margin: 8mm; }
+  body * { visibility: hidden !important; }
+  .label-sheet, .label-sheet * { visibility: visible !important; }
+  body > :not(.label-sheet) { display: none !important; }
+  .label-sheet { display: grid !important; width: 100%; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .label { display: flex; flex-direction: column; align-items: center; gap: 1mm; padding: 3mm; border: 0.2mm dashed #999; break-inside: avoid; font-family: Arial, sans-serif; color: #000; text-align: center; }
+  .label strong { font-size: 8pt; letter-spacing: 1pt; text-transform: uppercase; }
+  .label-name { font-size: 9pt; font-weight: 600; }
+  .label-variant { font-size: 8pt; }
+  .label .barcode { width: 46mm; }
+  .label-foot { display: flex; justify-content: space-between; width: 100%; font-size: 7.5pt; }
+  .label-foot strong { font-size: 9pt; text-transform: none; letter-spacing: 0; }
+}
+.color-pick button.out { opacity: 0.35; cursor: not-allowed; }
+.color-pick button.out::after { content: ''; position: absolute; left: 4px; right: 4px; top: 50%; height: 1px; background: var(--black); transform: rotate(-45deg); }
