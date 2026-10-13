@@ -6,6 +6,7 @@ import { isLight } from '../lib/colors';
 import { formatPrice, sortSizes } from '../lib/format';
 import FreeDelivery from '../components/FreeDelivery';
 import { useStore } from '../lib/store';
+import { supabase } from '../lib/supabase';
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -18,6 +19,11 @@ export default function ProductPage() {
   const [sizeId, setSizeId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [color, setColor] = useState<string | null>(null);
+  // Signed-in admins get a shortcut back to the editor (customers never sign in, so they never see it).
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    supabase?.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+  }, []);
   const [added, setAdded] = useState(false);
 
   useEffect(() => {
@@ -71,6 +77,11 @@ export default function ProductPage() {
     <div className="container page">
       <p className="small muted" style={{ marginBottom: 20 }}>
         <Link to="/">Shop</Link> / {product.name}
+        {signedIn && (
+          <Link to={`/admin/products/${product.id}`} className="admin-edit-link">
+            Edit product
+          </Link>
+        )}
       </p>
       <div className="product">
         <div>

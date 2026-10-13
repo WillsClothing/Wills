@@ -4,6 +4,7 @@ import { deleteImage, fetchCustomColors, fetchProduct, saveCustomColors, savePro
 import { CATEGORIES } from '../lib/catalog';
 import { isLight, PRESET_COLORS, sameColor } from '../lib/colors';
 import { sortSizes, uniqueSizes } from '../lib/format';
+import { useStore } from '../lib/store';
 import Barcode from '../components/Barcode';
 import LabelSheet from './LabelSheet';
 import type { ProductColor, ProductSize, ProductStatus } from '../lib/types';
@@ -52,6 +53,7 @@ export default function ProductEditor() {
   const isNew = !id;
   const navigate = useNavigate();
   const { notify } = useAdmin();
+  const { reload: reloadShop } = useStore();
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [removedImages, setRemovedImages] = useState<string[]>([]);
@@ -243,11 +245,18 @@ export default function ProductEditor() {
         sizes,
       });
       await Promise.all(removedImages.map((u) => deleteImage(u).catch(() => undefined)));
+      setRemovedImages([]);
+      if (form.status !== 'unavailable') {
+        // Show the product as customers see it; its page has an "Edit" link back here for admins.
+        await reloadShop();
+        navigate(`/product/${savedId}`);
+        window.scrollTo(0, 0);
+        return;
+      }
+      // Hidden products have no shop page, so stay here where the new SKUs and barcodes are visible.
       notify(isNew ? 'Product added. Its SKUs and barcodes are below.' : 'Product saved');
-      // Stay on the product so the SKUs and barcodes the database just issued are visible.
       if (isNew) navigate(`/admin/products/${savedId}`, { replace: true });
       else setReloadKey((k) => k + 1);
-      setRemovedImages([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
