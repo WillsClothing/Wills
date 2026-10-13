@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchAllProducts, fetchInventoryLogBetween } from '../lib/api';
 import { formatPrice } from '../lib/format';
-import { buildDailyReport, dayRange, downloadFile, reportToCsv, SALE_REASONS, todayString } from '../lib/report';
+import { buildReport, dateString, downloadFile, periodRange, PRESETS, presetRange, reportToCsv, SALE_REASONS, todayString, type Preset } from '../lib/report';
 import { useStore } from '../lib/store';
 import type { InventoryLogEntry, Product } from '../lib/types';
 
 export default function Reports() {
   const { settings } = useStore();
-  const [date, setDate] = useState(todayString());
+  const [start, setStart] = useState(todayString());
+  const [end, setEnd] = useState(todayString());
+  const [preset, setPreset] = useState<Preset | null>('today');
   const [log, setLog] = useState<InventoryLogEntry[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!date) return;
+    if (!start || !end || start > end) return;
     let live = true;
     setLoading(true);
     setError(null);
-    const [from, to] = dayRange(date);
+    const [from, to] = periodRange(start, end);
     Promise.all([fetchInventoryLogBetween(from, to), fetchAllProducts()])
       .then(([l, p]) => {
         if (!live) return;
@@ -30,14 +32,23 @@ export default function Reports() {
     return () => {
       live = false;
     };
-  }, [date]);
+  }, [start, end]);
 
-  const report = useMemo(() => buildDailyReport(date, log, products), [date, log, products]);
+  const report = useMemo(() => buildReport(start, end, log, products), [start, end, log, products]);
+  const invalid = !start || !end || start > end;
+  const multiDay = start !== end;
+
+  function pick(p: Preset) {
+    const [s, e] = presetRange(p);
+    setStart(s);
+    setEnd(e);
+    setPreset(p);
+  }
   const money = (n: number) => formatPrice(n, settings.currency);
 
   function download() {
     const csv = reportToCsv(report, settings.store_name, settings.currency);
-    downloadFile(`wills-report-${date}.csv`, csv);
+    downloadFile(multiDay ? `wills-report-${start}-to-${end}.csv` : `wills-report-${start}.csv`, csv);
   }
 
   const tiles = [
@@ -51,22 +62,54 @@ export default function Reports() {
 
   return (
     <div className="stack">
-      <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Daily report</h1>
+      <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Sales report</h1>
       <p className="small muted" style={{ margin: 0 }}>
-        Pick a day to see its sales and stock activity, then download it as a spreadsheet (CSV, opens in Excel or Google Sheets). Sales
+        Pick a time frame, or a start and end date, to see what sold and every stock change, then download it as a spreadsheet (CSV, opens in Excel or Google Sheets). Sales
         are the stock you remove in Inventory with the reason {SALE_REASONS.map((r) => `"${r}"`).join(' or ')}, valued at each product's
         current price.
       </p>
 
+      <div className="report-presets" role="group" aria-label="Time frame">
+        {PRESETS.map((p) => (
+          <button key={p.key} type="button" className={`chip ${preset === p.key ? 'active' : ''}`} onClick={() => pick(p.key)}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className="row" style={{ alignItems: 'flex-end' }}>
-        <label className="field" style={{ minWidth: 200 }}>
-          <span>Day</span>
-          <input className="input" type="date" value={date} max={todayString()} onChange={(e) => setDate(e.target.value)} />
+        <label className="field" style={{ minWidth: 180 }}>
+          <span>Start date</span>
+          <input
+            className="input"
+            type="date"
+            value={start}
+            max={todayString()}
+            onChange={(e) => {
+              setStart(e.target.value);
+              setPreset(null);
+            }}
+          />
         </label>
-        <button className="btn" onClick={download} disabled={loading || !!error}>
+        <label className="field" style={{ minWidth: 180 }}>
+          <span>End date</span>
+          <input
+            className="input"
+            type="date"
+            value={end}
+            min={start}
+            max={todayString()}
+            onChange={(e) => {
+              setEnd(e.target.value);
+              setPreset(null);
+            }}
+          />
+        </label>
+        <button className="btn" onClick={download} disabled={loading || !!error || invalid}>
           Download report
         </button>
       </div>
+      {invalid && <p className="error">The end date must be on or after the start date.</p>}
 
       {error && <p className="error">{error}</p>}
 
@@ -81,7 +124,7 @@ export default function Reports() {
 
       <h2 style={{ fontSize: '1rem', marginTop: 16 }}>Sales by product</h2>
       {report.sales.length === 0 ? (
-        <p className="small muted">{loading ? 'Loading…' : 'No sales recorded on this day.'}</p>
+        <p className="small muted">{loading ? 'Loading…' : 'No sales recorded in this period.'}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
@@ -109,15 +152,41 @@ export default function Reports() {
         </div>
       )}
 
+      {multiDay && report.byDay.length > 0 && (
+        <>
+          <h2 style={{ fontSize: '1rem', marginTop: 16 }}>Sales by day</h2>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Units</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.byDay.map((d) => (
+                  <tr key={d.date}>
+                    <td>{d.date}</td>
+                    <td>{d.units}</td>
+                    <td style={{ fontWeight: 500 }}>{money(d.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
       <h2 style={{ fontSize: '1rem', marginTop: 16 }}>All stock changes</h2>
       {report.log.length === 0 ? (
-        <p className="small muted">{loading ? 'Loading…' : 'No stock changes on this day.'}</p>
+        <p className="small muted">{loading ? 'Loading…' : 'No stock changes in this period.'}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Time</th>
+                <th>{multiDay ? 'When' : 'Time'}</th>
                 <th>Product</th>
                 <th>Size</th>
                 <th>Change</th>
@@ -129,7 +198,7 @@ export default function Reports() {
               {report.log.map((l) => (
                 <tr key={l.id}>
                   <td className="small" style={{ whiteSpace: 'nowrap' }}>
-                    {new Date(l.created_at).toLocaleTimeString()}
+                    {multiDay ? `${dateString(new Date(l.created_at))} ${new Date(l.created_at).toLocaleTimeString()}` : new Date(l.created_at).toLocaleTimeString()}
                   </td>
                   <td>{l.product_name}</td>
                   <td>{l.size}</td>
