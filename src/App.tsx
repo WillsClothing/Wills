@@ -12,6 +12,7 @@ const AdminProducts = lazy(() => import('./admin/AdminProducts'));
 const ProductEditor = lazy(() => import('./admin/ProductEditor'));
 const Inventory = lazy(() => import('./admin/Inventory'));
 const Reports = lazy(() => import('./admin/Reports'));
+const Promotions = lazy(() => import('./admin/Promotions'));
 const Settings = lazy(() => import('./admin/Settings'));
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="products/new" element={<ProductEditor />} />
           <Route path="products/:id" element={<ProductEditor />} />
           <Route path="inventory" element={<Inventory />} />
+          <Route path="offers" element={<Promotions />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>

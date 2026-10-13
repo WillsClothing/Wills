@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Logo from '../components/Logo';
 import ProductCard, { isSoldOut } from '../components/ProductCard';
+import Offers from '../components/Offers';
 import Reveal from '../components/Reveal';
 import { CATEGORIES, priceBands } from '../lib/catalog';
 import { formatPrice } from '../lib/format';
@@ -58,7 +59,7 @@ function spotlight(e: React.MouseEvent<HTMLElement>) {
 }
 
 export default function Shop() {
-  const { products, settings, loading, error } = useStore();
+  const { products, promotions, settings, loading, error } = useStore();
   const [params, setParams] = useSearchParams();
   const type = params.get('type') ?? '';
   const priceKey = params.get('price') ?? '';
@@ -104,14 +105,7 @@ export default function Shop() {
         <div className="container">
           <Logo className="hero-logo" />
           <h1 className="hero-title">
-            <span className="line">
-              <span>Right time</span>
-            </span>
-            <span className="line">
-              <span>
-                <em>Right now</em>
-              </span>
-            </span>
+            <span>Right time</span> <span>right now</span>
           </h1>
           <a href="#collection" className="btn btn-gold">
             Shop the collection
@@ -145,6 +139,8 @@ export default function Shop() {
           ))}
         </div>
       </section>
+
+      {promotions.length > 0 && <Offers promotions={promotions} products={products} />}
 
       {types.length > 1 && (
         <section className="container type-tiles">

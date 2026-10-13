@@ -25,7 +25,7 @@ Every stock change is recorded in an inventory log (who, when, how much, why), v
 ### 1. Create the Supabase project
 
 1. Sign up at <https://supabase.com> and create a **New project** (free plan). Pick the region closest to your customers and save the database password somewhere safe.
-2. Open **SQL Editor → New query**, paste the whole of [`supabase/schema.sql`](supabase/schema.sql) and press **Run**. This creates the tables, security rules, image bucket and live updates.
+2. Open **SQL Editor → New query**, paste the whole of [`supabase/schema.sql`](supabase/schema.sql) and press **Run**. This creates the tables, security rules, image bucket and live updates. (Set up before combo offers existed? Run [`supabase/promotions.sql`](supabase/promotions.sql) once to add them.)
 3. Open **Authentication → Sign In / Providers** and turn **off** "Allow new users to sign up". Admin accounts are created by you, not by visitors.
 4. Open **Authentication → Users → Add user → Create new user**, enter the admin email and a strong password, and tick "Auto Confirm User".
 5. Back in **SQL Editor**, make that user an admin (replace the email):
@@ -95,6 +95,7 @@ Without `.env.local` the shop runs in **demo mode** with sample products, so you
 
 ```
 supabase/schema.sql      Database tables, security rules, storage bucket
+supabase/promotions.sql  Adds the combo offers table to an existing database
 src/lib/                 Supabase client, data access, cart, WhatsApp message
 src/pages/               Customer portal pages (shop, product, cart)
 src/components/          Shared layout and product card
