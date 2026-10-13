@@ -5,6 +5,7 @@ import { resolveCart, useCart } from '../lib/cart';
 import { formatPrice } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { PaymentMethod } from '../lib/types';
+import { TruckIcon } from '../components/FreeDelivery';
 import { buildOrderMessage, PAYMENT_LABELS, whatsappLink, type CustomerDetails } from '../lib/whatsapp';
 
 export default function CartPage() {
@@ -126,6 +127,12 @@ export default function CartPage() {
                 <span>{formatPrice(i.lineTotal, settings.currency)}</span>
               </div>
             ))}
+            <div className="summary-row small summary-delivery">
+              <span>
+                <TruckIcon /> Delivery (island wide)
+              </span>
+              <span>Free</span>
+            </div>
             <div className="summary-row summary-total">
               <span>Total</span>
               <span>{formatPrice(total, settings.currency)}</span>

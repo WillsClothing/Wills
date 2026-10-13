@@ -91,7 +91,7 @@ label.field > span { display: block; font-size: 0.72rem; text-transform: upperca
 textarea.input { min-height: 96px; resize: vertical; }
 
 /* ---------- Header (black) ---------- */
-.announcement { background: var(--black); color: var(--gold); text-align: center; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; padding: 8px 16px; border-bottom: 1px solid var(--ink-line); }
+.announcement { background: var(--black); color: var(--gold); text-align: center; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; padding: 8px 16px; border-bottom: 1px solid var(--ink-line); display: flex; align-items: center; justify-content: center; gap: 10px; overflow: hidden; }
 .header { position: sticky; top: 0; z-index: 20; background: rgba(11, 11, 11, 0.94); backdrop-filter: blur(10px); color: var(--on-ink); }
 .header .container { display: flex; align-items: center; height: 68px; gap: 16px; }
 .logo { display: inline-flex; align-items: center; text-decoration: none; }
@@ -151,7 +151,9 @@ textarea.input { min-height: 96px; resize: vertical; }
 @media (max-width: 680px) { .grid { grid-template-columns: repeat(2, 1fr); gap: 24px 12px; } }
 .card { text-decoration: none; display: block; color: inherit; }
 .card-img { position: relative; aspect-ratio: 4 / 5; background: var(--gray-100); overflow: hidden; transition: box-shadow 0.6s var(--ease), transform 0.6s var(--ease); }
-.card:hover .card-img { transform: translateY(-4px); box-shadow: 0 18px 40px -18px rgba(11, 11, 11, 0.35); }
+.card { --rx: 0deg; --ry: 0deg; }
+.card-img { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)); transition: box-shadow 0.6s var(--ease), transform 0.25s ease-out; }
+.card:hover .card-img { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-6px); box-shadow: 0 24px 46px -18px rgba(11, 11, 11, 0.45); }
 .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 1s var(--ease), opacity 0.6s var(--ease); }
 .card:hover .card-img img { transform: scale(1.06); }
 .card-img .card-img-alt { position: absolute; inset: 0; opacity: 0; }
@@ -335,9 +337,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 }
 
 /* ---------- Scroll reveal ---------- */
-.reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
-.reveal.in { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } }
+.reveal { opacity: 0; transform: translateY(30px) scale(0.985); filter: blur(6px); transition: opacity 1s var(--ease), transform 1s var(--ease), filter 1s var(--ease); }
+.reveal.in { opacity: 1; transform: none; filter: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; filter: none; } }
 
 /* ---------- Header on scroll + page fade ---------- */
 .header { transition: box-shadow 0.4s var(--ease), background 0.4s; }
@@ -346,7 +348,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .header.scrolled .container { height: 58px; }
 .header.scrolled .logo img { height: 38px; }
 .page-fade { animation: page-in 0.7s var(--ease) both; }
-@keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes page-in { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 
 /* ---------- Hero scroll cue ---------- */
 .scroll-cue { display: block; width: 1px; height: 46px; margin: 44px auto 0; background: linear-gradient(var(--gold), transparent); position: relative; overflow: hidden; animation: rise 1s 1.6s var(--ease) both; }
@@ -555,3 +557,44 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .kind-pick button small { color: var(--gray-500); font-size: 0.78rem; }
 .kind-pick button.on { border-color: var(--black); box-shadow: inset 0 0 0 1px var(--black); }
 @media (max-width: 520px) { .kind-pick { grid-template-columns: 1fr; } }
+
+/* ---------- Free delivery ---------- */
+.truck { width: 16px; height: 16px; flex-shrink: 0; }
+.announcement .truck { animation: truck-drive 5s var(--ease) infinite; }
+.announcement-text { background: linear-gradient(100deg, var(--gold) 0%, var(--gold) 40%, #fff6dc 50%, var(--gold) 60%, var(--gold) 100%) 0 0 / 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: text-shine 5s linear infinite; }
+@keyframes text-shine { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@keyframes truck-drive { 0% { transform: translateX(-60px); opacity: 0; } 18% { transform: none; opacity: 1; } 80% { transform: none; opacity: 1; } 100% { transform: translateX(40px); opacity: 0; } }
+
+.free-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--gold-deep); }
+.free-badge.on-card { position: absolute; top: 10px; right: 10px; z-index: 2; background: rgba(11, 11, 11, 0.82); color: var(--gold); backdrop-filter: blur(6px); padding: 6px 10px 6px 8px; border-radius: 999px; font-size: 9.5px; }
+.free-badge.on-card .truck { width: 14px; height: 14px; }
+.card:hover .free-badge.on-card .truck { animation: truck-hop 0.6s var(--ease); }
+@keyframes truck-hop { 40% { transform: translateX(4px) rotate(-4deg); } }
+@media (max-width: 480px) { .free-badge.on-card { top: 8px; right: 8px; padding: 5px 8px 5px 7px; font-size: 8.5px; letter-spacing: 1.2px; } }
+
+.free-strip { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--gold); background: linear-gradient(110deg, rgba(216, 184, 112, 0.1), transparent 60%); position: relative; overflow: hidden; }
+.free-strip::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(216, 184, 112, 0.22) 50%, transparent 70%); transform: translateX(-100%); animation: strip-sweep 4.5s 1s ease-in-out infinite; pointer-events: none; }
+.free-strip-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--black); color: var(--gold); flex-shrink: 0; }
+.free-strip-icon .truck { width: 20px; height: 20px; animation: truck-idle 1.6s ease-in-out infinite; }
+.free-strip strong { display: block; font-weight: 500; font-size: 0.82rem; letter-spacing: 2px; text-transform: uppercase; }
+.free-strip small { color: var(--gray-500); font-size: 0.82rem; }
+@keyframes strip-sweep { 0%, 50% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes truck-idle { 50% { transform: translateY(-1.5px); } }
+
+.summary-delivery { color: var(--gold-deep); }
+.summary-delivery span:first-child { display: inline-flex; align-items: center; gap: 8px; }
+.summary-delivery span:last-child { font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; font-size: 0.78rem; }
+
+/* ---------- Extra motion ---------- */
+.card-shine { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%); transform: translateX(-120%); }
+.card:hover .card-shine { transform: translateX(120%); transition: transform 0.9s var(--ease); }
+.scroll-progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 60; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); transform-origin: left; transform: scaleX(var(--scroll, 0)); pointer-events: none; }
+.badge-count.bump { animation: bump 0.5s var(--ease); }
+@keyframes bump { 40% { transform: scale(1.35); } }
+.btn-gold { position: relative; overflow: hidden; }
+.btn-gold::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent); transform: skewX(-20deg); animation: btn-gleam 5s 2s ease-in-out infinite; pointer-events: none; }
+@keyframes btn-gleam { 0%, 70% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) {
+  .announcement .truck, .announcement-text, .free-strip::after, .free-strip-icon .truck, .btn-gold::after, .badge-count.bump, .card-shine { animation: none; transition: none; }
+  .card-img { transform: none !important; }
+}
