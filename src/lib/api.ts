@@ -191,6 +191,19 @@ export async function fetchInventoryLog(limit = 100): Promise<InventoryLogEntry[
   return data as InventoryLogEntry[];
 }
 
+/** Every stock change between two moments (inclusive start, exclusive end), oldest first. */
+export async function fetchInventoryLogBetween(from: Date, to: Date): Promise<InventoryLogEntry[]> {
+  const { data, error } = await db()
+    .from('inventory_log')
+    .select('id, product_id, product_name, size, change, new_stock, reason, created_at')
+    .gte('created_at', from.toISOString())
+    .lt('created_at', to.toISOString())
+    .order('created_at', { ascending: true })
+    .limit(5000);
+  if (error) throw error;
+  return data as InventoryLogEntry[];
+}
+
 export async function updateSettings(settings: StoreSettings) {
   const { error } = await db().from('store_settings').update(settings).eq('id', 1);
   if (error) throw error;

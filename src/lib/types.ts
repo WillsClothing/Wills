@@ -32,6 +32,7 @@ export interface StoreSettings {
 
 export interface InventoryLogEntry {
   id: number;
+  product_id?: string | null;
   product_name: string;
   size: string;
   change: number;

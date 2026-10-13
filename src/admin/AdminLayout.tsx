@@ -79,6 +79,7 @@ export default function AdminLayout() {
           Products
         </NavLink>
         <NavLink to="/admin/inventory">Inventory</NavLink>
+        <NavLink to="/admin/reports">Reports</NavLink>
         <NavLink to="/admin/settings">Settings</NavLink>
         <a href={import.meta.env.BASE_URL} target="_blank" rel="noreferrer">
           View shop ↗
