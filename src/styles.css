@@ -353,13 +353,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .scroll-cue::after { content: ''; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--on-ink); animation: cue 2.2s 2s ease-in-out infinite; }
 @keyframes cue { to { top: 110%; } }
 
-/* ---------- Marquee ---------- */
-.marquee { background: var(--black); color: var(--gold); overflow: hidden; border-top: 1px solid var(--ink-line); border-bottom: 1px solid var(--ink-line); padding: 14px 0; }
-.marquee-track { display: flex; width: max-content; gap: 36px; align-items: center; animation: marquee 32s linear infinite; font-family: var(--serif); font-size: 1.15rem; font-style: italic; letter-spacing: 0.04em; white-space: nowrap; }
-.marquee-track i { font-style: normal; font-size: 0.7rem; color: var(--on-ink-muted); }
-.marquee:hover .marquee-track { animation-play-state: paused; }
-@keyframes marquee { to { transform: translateX(-50%); } }
-
 /* ---------- Product type tiles ---------- */
 .type-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 56px; }
 .type-tile { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; border: none; padding: 0; overflow: hidden; cursor: pointer; background: var(--black); color: var(--on-ink); text-align: left; font: inherit; }
@@ -406,3 +399,42 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .modal p { margin: 0 0 22px; }
 .modal-actions { display: grid; gap: 10px; }
 @keyframes fade-in { from { opacity: 0; } }
+
+/* ---------- Hero: "Right time, right now" ---------- */
+.hero { --mx: 50%; --my: 40%; padding-bottom: 72px; }
+.hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px circle at var(--mx) var(--my), rgba(216, 184, 112, 0.13), transparent 70%); transition: background 0.2s; }
+.hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.07; background-image: radial-gradient(rgba(255, 255, 255, 0.9) 0.6px, transparent 0.6px); background-size: 4px 4px; mix-blend-mode: overlay; }
+.hero .hero-title { font-family: var(--serif); text-transform: uppercase; font-weight: 400; letter-spacing: 0.06em; font-size: clamp(44px, 9vw, 112px); line-height: 0.95; margin: 0 0 34px; }
+.hero .hero-title em { letter-spacing: 0.04em; }
+.hero .hero-title .line:nth-child(1) > span { animation-delay: 0.45s; }
+.hero .hero-title .line:nth-child(2) > span { animation-delay: 0.65s; }
+.hero .btn { animation-delay: 1s; }
+.hero-badge { position: absolute; left: 6%; bottom: 56px; width: 132px; height: 132px; z-index: 1; animation: spin 22s linear infinite, fade-in 1.2s 1.2s var(--ease) both; }
+.hero-badge text { fill: var(--gold); font-family: var(--font); font-size: 8.6px; letter-spacing: 0; text-transform: uppercase; }
+.hero-badge circle { fill: var(--gold); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) { .hero-badge { display: none; } }
+
+/* ---------- Perks ---------- */
+.perks { background: var(--black); color: var(--on-ink); border-top: 1px solid var(--ink-line); }
+.perks-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.perk { position: relative; padding: 44px 32px 40px; border-left: 1px solid var(--ink-line); overflow: hidden; transition: background 0.5s var(--ease), opacity 0.9s var(--ease), transform 0.9s var(--ease); }
+.perk:first-child { border-left: none; }
+.perk::after { content: ''; position: absolute; left: 32px; right: 32px; bottom: 0; height: 1px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform 0.6s var(--ease); }
+.perk:hover { background: rgba(216, 184, 112, 0.04); }
+.perk:hover::after { transform: scaleX(1); }
+.perk-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(216, 184, 112, 0.45); color: var(--gold); transition: background 0.5s var(--ease), color 0.5s, transform 0.6s var(--ease); }
+.perk-icon svg { width: 24px; height: 24px; }
+.perk:hover .perk-icon { background: var(--gold); color: var(--black); transform: rotate(-8deg) scale(1.06); }
+.perk-num { position: absolute; top: 30px; right: 32px; font-family: var(--serif); font-style: italic; font-size: 2.6rem; line-height: 1; color: rgba(216, 184, 112, 0.18); }
+.perk h3 { font-family: var(--serif); font-weight: 500; font-size: 1.45rem; margin: 20px 0 8px; color: var(--on-ink); }
+.perk p { margin: 0; color: var(--on-ink-muted); font-size: 0.9rem; line-height: 1.6; max-width: 300px; }
+@media (max-width: 760px) {
+  .perks-grid { grid-template-columns: 1fr; }
+  .perk { border-left: none; border-top: 1px solid var(--ink-line); padding: 30px 8px; display: grid; grid-template-columns: 52px 1fr; column-gap: 18px; }
+  .perk:first-child { border-top: none; }
+  .perk-icon { grid-row: span 2; }
+  .perk h3 { margin: 4px 0 4px; }
+  .perk-num { top: 24px; right: 8px; font-size: 2rem; }
+  .perk::after { left: 8px; right: 8px; }
+}

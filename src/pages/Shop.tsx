@@ -27,6 +27,36 @@ function sortProducts(list: Product[], sort: Sort): Product[] {
   return out;
 }
 
+const icon = (d: string) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
+  </svg>
+);
+
+const PERKS = [
+  {
+    title: 'Order on WhatsApp',
+    text: 'Pick your size, add to cart and send your order in one tap. We confirm every order personally.',
+    icon: icon('M4 20l1.3-3.9A8 8 0 1 1 8 18.7L4 20z M9 10c.5 2 2 3.5 4 4l1.2-1.1 2 .9c-.2 1.2-1.2 2-2.4 1.9C10.7 15.4 8.4 13 8.1 10.4 8 9.2 8.9 8.2 10 8l.9 2z'),
+  },
+  {
+    title: 'Cash on Delivery',
+    text: 'Pay when your order reaches your door. No cards, no stress.',
+    icon: icon('M3 7h18v10H3z M7 7V5h10v2 M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M6 12h.01 M18 12h.01'),
+  },
+  {
+    title: 'Bank Transfer',
+    text: 'Prefer to pay ahead? Transfer to our account and send the slip on WhatsApp.',
+    icon: icon('M3 10l9-6 9 6 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 20h18'),
+  },
+];
+
+function spotlight(e: React.MouseEvent<HTMLElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+}
+
 export default function Shop() {
   const { products, settings, loading, error } = useStore();
   const [params, setParams] = useSearchParams();
@@ -65,7 +95,7 @@ export default function Shop() {
 
   return (
     <>
-      <section className="hero">
+      <section className="hero" onMouseMove={spotlight}>
         <div className="hero-mist" aria-hidden="true">
           <span />
           <span />
@@ -73,41 +103,48 @@ export default function Shop() {
         </div>
         <div className="container">
           <Logo className="hero-logo" />
-          <p className="eyebrow">New collection</p>
-          <h1>
+          <h1 className="hero-title">
             <span className="line">
-              <span>Wear it</span>
+              <span>Right time</span>
             </span>
             <span className="line">
               <span>
-                your <em>way</em>
+                <em>Right now</em>
               </span>
             </span>
           </h1>
-          <p>Pick your size, add to cart and order on WhatsApp. Cash on Delivery or bank transfer.</p>
           <a href="#collection" className="btn btn-gold">
             Shop the collection
           </a>
         </div>
+        <svg className="hero-badge" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <path id="badge-ring" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0" />
+          </defs>
+          <text>
+            <textPath href="#badge-ring" textLength="286" lengthAdjust="spacing">Right time · Right now · Wills Clothing ·</textPath>
+          </text>
+          <circle cx="60" cy="60" r="3" />
+        </svg>
         <div className="scroll-cue" aria-hidden="true">
           <span />
         </div>
       </section>
 
-      <div className="marquee" aria-hidden="true">
-        <div className="marquee-track">
-          {[0, 1].map((k) => (
-            <span key={k}>
-              {[...types, 'Order on WhatsApp', 'Cash on Delivery', 'Bank Transfer'].map((t) => (
-                <span key={t}>
-                  {t}
-                  <i>✦</i>
-                </span>
-              ))}
-            </span>
+      <section className="perks">
+        <div className="container perks-grid">
+          {PERKS.map((perk, i) => (
+            <Reveal key={perk.title} delay={i * 120} className="perk">
+              <span className="perk-icon" aria-hidden="true">
+                {perk.icon}
+              </span>
+              <span className="perk-num">0{i + 1}</span>
+              <h3>{perk.title}</h3>
+              <p>{perk.text}</p>
+            </Reveal>
           ))}
         </div>
-      </div>
+      </section>
 
       {types.length > 1 && (
         <section className="container type-tiles">
