@@ -44,7 +44,7 @@ function OfferMedia({ pictures, title, save }: { pictures: string[]; title: stri
 }
 
 const OPEN_EVENT = 'wills:open-offers';
-const openOffers = () => window.dispatchEvent(new Event(OPEN_EVENT));
+export const openOffers = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
 function DrawerCard({ promo, products }: { promo: Promotion; products: Product[] }) {
   const o = useOffer(promo, products);
