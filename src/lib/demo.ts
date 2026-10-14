@@ -31,6 +31,7 @@ function product(
     sku: null,
     images: [svg(name.toUpperCase(), shade)],
     colors: [],
+    size_chart: null,
     sort_order: 0,
     created_at: now,
     updated_at: now,

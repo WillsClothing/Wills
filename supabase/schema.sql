@@ -576,3 +576,6 @@ revoke all on function public.create_invoice(jsonb, jsonb, text, numeric, text, 
 grant execute on function public.create_invoice(jsonb, jsonb, text, numeric, text, boolean) to authenticated;
 revoke all on function public.cancel_invoice(uuid) from public, anon;
 grant execute on function public.cancel_invoice(uuid) to authenticated;
+
+-- ---------- Size charts (same as size_chart.sql) -------------------
+alter table public.products add column if not exists size_chart jsonb;
