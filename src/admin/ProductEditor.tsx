@@ -8,6 +8,7 @@ import { sortSizes, uniqueSizes } from '../lib/format';
 import { useStore } from '../lib/store';
 import Barcode from '../components/Barcode';
 import LabelSheet from './LabelSheet';
+import SizeChartEditor, { chartFromDraft, defaultColumns, draftFromChart, type ChartDraft } from './SizeChartEditor';
 import type { ProductColor, ProductSize, ProductStatus } from '../lib/types';
 import { useAdmin } from './AdminLayout';
 import { STATUS_LABELS } from './StatusBadge';
@@ -30,6 +31,7 @@ interface FormState {
   stock: Record<string, number>;
   /** Existing variant ids per colour + size, so edits keep their SKU, barcode and history. */
   ids: Record<string, string>;
+  chart: ChartDraft;
 }
 
 /** Stock grid cell for a colour ('' = no colour) and size. */
@@ -47,6 +49,7 @@ const EMPTY: FormState = {
   sizes: [],
   stock: {},
   ids: {},
+  chart: draftFromChart(null, CATEGORIES[0]),
 };
 
 type SavedInfo = { id: string; isNew: boolean; visible: boolean; name: string };
@@ -159,6 +162,7 @@ export default function ProductEditor() {
           sizes: uniqueSizes(rows),
           stock,
           ids,
+          chart: draftFromChart(p.size_chart, p.category),
         });
       })
       .catch((e) => setError(e.message))
@@ -167,6 +171,14 @@ export default function ProductEditor() {
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  /** A blank size chart follows the product type (chest for tees, waist for shorts). */
+  function changeCategory(category: string) {
+    setForm((f) => {
+      const blank = !Object.values(f.chart.values).some((v) => v.some((x) => x.trim()));
+      return { ...f, category, chart: blank ? { ...f.chart, columns: defaultColumns(category) } : f.chart };
+    });
   }
 
   function addSize(label: string) {
@@ -291,6 +303,7 @@ export default function ProductEditor() {
         sort_order: Number(form.sort_order) || 0,
         images: form.images,
         colors: form.colors,
+        size_chart: chartFromDraft(form.chart, form.sizes),
         sizes,
       });
       await Promise.all(removedImages.map((u) => deleteImage(u).catch(() => undefined)));
@@ -338,7 +351,7 @@ export default function ProductEditor() {
           </label>
           <label className="field">
             <span>Product type</span>
-            <select className="input" value={form.category} onChange={(e) => set('category', e.target.value)} required>
+            <select className="input" value={form.category} onChange={(e) => changeCategory(e.target.value)} required>
               <option value="" disabled>
                 Choose a product type
               </option>
@@ -533,6 +546,15 @@ export default function ProductEditor() {
           {totalUnits} {totalUnits === 1 ? 'piece' : 'pieces'} in total. Stock is only ever changed by admins and every change is saved to the inventory log.
         </p>
       </section>
+
+      <SizeChartEditor
+        draft={form.chart}
+        sizes={form.sizes}
+        category={form.category}
+        productId={id}
+        onChange={(chart) => set('chart', chart)}
+        notify={notify}
+      />
 
       <section className="panel">
         <div className="row" style={{ alignItems: 'baseline' }}>

@@ -1,6 +1,6 @@
 import { supabase, isConfigured, IMAGE_BUCKET } from './supabase';
 import { demoProducts, demoSettings } from './demo';
-import type { InventoryLogEntry, Product, ProductColor, ProductStatus, Promotion, StoreSettings } from './types';
+import type { InventoryLogEntry, Product, ProductColor, ProductStatus, Promotion, SizeChart, StoreSettings } from './types';
 
 const PRODUCT_SELECT = '*, product_sizes(*)';
 
@@ -15,6 +15,7 @@ function normalize(p: Product): Product {
     sku: p.sku ?? null,
     price: Number(p.price),
     colors: Array.isArray(p.colors) ? p.colors : [],
+    size_chart: p.size_chart && Array.isArray(p.size_chart.columns) ? p.size_chart : null,
     product_sizes: (p.product_sizes ?? []).map((s) => ({ ...s, color: s.color ?? '', sku: s.sku ?? '', barcode: s.barcode ?? null })),
   };
 }
@@ -137,6 +138,7 @@ export interface ProductInput {
   status: ProductStatus;
   images: string[];
   colors: ProductColor[];
+  size_chart: SizeChart | null;
   sort_order: number;
   sizes: SizeInput[];
 }
@@ -158,9 +160,17 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
   let productId = id;
   let existing: Product | null = null;
   let { data, error } = await write(fields);
-  if (error && /colors/.test(error.message) && fields.colors.length === 0) {
-    const { colors: _unused, ...rest } = fields;
+  // Until size_chart.sql has been run there is no size_chart column: products without a chart still save.
+  if (error && /size_chart/.test(error.message) && !fields.size_chart) {
+    const { size_chart: _chart, ...rest } = fields;
     ({ data, error } = await write(rest));
+  }
+  if (error && /colors/.test(error.message) && fields.colors.length === 0) {
+    const { colors: _unused, size_chart: _chart, ...rest } = fields;
+    ({ data, error } = await write(fields.size_chart ? { ...rest, size_chart: fields.size_chart } : rest));
+  }
+  if (error && /size_chart/.test(error.message)) {
+    throw new Error('Size charts are not set up in the database yet. Run supabase/size_chart.sql in the Supabase SQL Editor, then save again.');
   }
   if (error) throw colorsHint(error);
   if (productId) existing = await fetchProduct(productId);

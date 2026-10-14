@@ -35,6 +35,19 @@ export interface Product {
   created_at: string;
   updated_at: string;
   product_sizes: ProductSize[];
+  /** Measurements per size, shown in the Size guide. Null until the admin adds one. */
+  size_chart: SizeChart | null;
+}
+
+export interface SizeChart {
+  unit: 'in' | 'cm';
+  /** Measurement names, e.g. Chest, Length, Shoulder, Sleeve. */
+  columns: string[];
+  rows: { size: string; values: string[] }[];
+  /** Fit note shown under Fit & Sizing, e.g. "Relaxed fit. Model is 6'0" and wears L." */
+  note: string;
+  /** Optional picture of the chart or how to measure. */
+  image: string;
 }
 
 export interface StoreSettings {
