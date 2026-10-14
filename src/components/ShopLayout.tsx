@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { useCart } from '../lib/cart';
 import { useStore } from '../lib/store';
 import { isConfigured } from '../lib/supabase';
@@ -17,7 +17,13 @@ export default function ShopLayout() {
   const hasWhatsApp = Boolean(settings.whatsapp_number);
   const inquiry = `Hello ${settings.store_name}, I have a question.`;
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   const [scrolled, setScrolled] = useState(false);
+
+  // Opening a page starts at its top, so a product shows its photos first. Back and forward keep the browser's own position.
+  useLayoutEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname, navigationType]);
 
   useEffect(() => {
     const onScroll = () => {

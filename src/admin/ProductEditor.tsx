@@ -76,7 +76,7 @@ function SavedDialog({ info, onClose }: { info: SavedInfo; onClose: () => void }
             Back to admin home
           </Link>
           {info.visible && (
-            <Link to={`/product/${info.id}`} className="btn" onClick={() => window.scrollTo(0, 0)}>
+            <Link to={`/product/${info.id}`} className="btn">
               View in shop
             </Link>
           )}
