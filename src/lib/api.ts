@@ -139,7 +139,6 @@ export interface ProductInput {
   images: string[];
   colors: ProductColor[];
   size_chart: SizeChart | null;
-  sort_order: number;
   sizes: SizeInput[];
 }
 
@@ -152,21 +151,23 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
   const { sizes, ...fields } = input;
 
   // Until colors.sql has been run there is no colors column: products without colours still save.
-  const write = (row: Partial<typeof fields>) =>
+  const write = (row: Partial<typeof fields> & { sort_order?: number }) =>
     productId
       ? client.from('products').update(row).eq('id', productId).select('id').single()
       : client.from('products').insert(row).select('id').single();
 
   let productId = id;
   let existing: Product | null = null;
-  let { data, error } = await write(fields);
+  // A new product goes to the top of the display order; edits keep their place.
+  const firstWrite = productId ? fields : { ...fields, sort_order: await topSortOrder() };
+  let { data, error } = await write(firstWrite);
   // Until size_chart.sql has been run there is no size_chart column: products without a chart still save.
   if (error && /size_chart/.test(error.message) && !fields.size_chart) {
-    const { size_chart: _chart, ...rest } = fields;
+    const { size_chart: _chart, ...rest } = firstWrite;
     ({ data, error } = await write(rest));
   }
   if (error && /colors/.test(error.message) && fields.colors.length === 0) {
-    const { colors: _unused, size_chart: _chart, ...rest } = fields;
+    const { colors: _unused, size_chart: _chart, ...rest } = firstWrite;
     ({ data, error } = await write(fields.size_chart ? { ...rest, size_chart: fields.size_chart } : rest));
   }
   if (error && /size_chart/.test(error.message)) {
@@ -206,6 +207,24 @@ export async function saveProduct(id: string | null, input: ProductInput): Promi
   }
 
   return productId!;
+}
+
+/** One less than the current top product's display order, so a new product shows first. */
+async function topSortOrder(): Promise<number> {
+  const { data, error } = await db().from('products').select('sort_order').order('sort_order').limit(1).maybeSingle();
+  if (error) throw error;
+  return data ? (data.sort_order as number) - 1 : 0;
+}
+
+/** Saves the admin's display order: the first id shows first in the shop. Only rows that moved are written. */
+export async function reorderProducts(ordered: Product[]) {
+  const client = db();
+  const changed = ordered.map((p, index) => ({ p, index })).filter(({ p, index }) => p.sort_order !== index);
+  const results = await Promise.all(
+    changed.map(({ p, index }) => client.from('products').update({ sort_order: index }).eq('id', p.id)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw failed.error;
 }
 
 export async function deleteProduct(product: Product) {

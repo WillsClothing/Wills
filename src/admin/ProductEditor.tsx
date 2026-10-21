@@ -22,7 +22,6 @@ interface FormState {
   price: string;
   category: string;
   status: ProductStatus;
-  sort_order: string;
   images: string[];
   colors: ProductColor[];
   /** Size names in display order. */
@@ -43,7 +42,6 @@ const EMPTY: FormState = {
   price: '',
   category: CATEGORIES[0],
   status: 'available',
-  sort_order: '0',
   images: [],
   colors: [],
   sizes: [],
@@ -156,7 +154,6 @@ export default function ProductEditor() {
           price: String(p.price),
           category: p.category,
           status: p.status,
-          sort_order: String(p.sort_order),
           images: p.images,
           colors,
           sizes: uniqueSizes(rows),
@@ -300,7 +297,6 @@ export default function ProductEditor() {
         price,
         category: form.category.trim(),
         status: form.status,
-        sort_order: Number(form.sort_order) || 0,
         images: form.images,
         colors: form.colors,
         size_chart: chartFromDraft(form.chart, form.sizes),
@@ -371,10 +367,6 @@ export default function ProductEditor() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span>Display order</span>
-            <input className="input" type="number" value={form.sort_order} onChange={(e) => set('sort_order', e.target.value)} />
           </label>
           <label className="field full">
             <span>Description</span>

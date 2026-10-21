@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteProduct, fetchAllProducts, setProductStatus } from '../lib/api';
+import { deleteProduct, fetchAllProducts, reorderProducts, setProductStatus } from '../lib/api';
 import { formatPrice, sortSizes, totalStock, variantLabel } from '../lib/format';
 import { useStore } from '../lib/store';
 import type { Product, ProductStatus } from '../lib/types';
@@ -9,11 +9,13 @@ import { STATUS_LABELS } from './StatusBadge';
 
 export default function AdminProducts() {
   const { notify } = useAdmin();
-  const { settings } = useStore();
+  const { settings, reload: reloadShop } = useStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,6 +53,32 @@ export default function AdminProducts() {
     }
   }
 
+  /** Moves a product to a new place in the list and saves the order the shop shows. */
+  async function move(from: number, to: number) {
+    if (from === to || to < 0 || to >= products.length) return;
+    const next = [...products];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    setProducts(next);
+    try {
+      await reorderProducts(next);
+      setProducts(next.map((p, index) => ({ ...p, sort_order: index })));
+      reloadShop();
+      notify('Order saved');
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not save the order');
+      load();
+    }
+  }
+
+  function drop(targetId: string) {
+    const from = products.findIndex((p) => p.id === dragId);
+    const to = products.findIndex((p) => p.id === targetId);
+    setDragId(null);
+    setOverId(null);
+    if (from >= 0 && to >= 0) move(from, to);
+  }
+
   const q = query.trim().toLowerCase();
   const visible = q
     ? products.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
@@ -66,6 +94,13 @@ export default function AdminProducts() {
         </Link>
       </div>
       <input className="input" placeholder="Search by name or category" value={query} onChange={(e) => setQuery(e.target.value)} style={{ maxWidth: 360 }} />
+      {products.length > 1 && (
+        <p className="small muted" style={{ margin: 0 }}>
+          {q
+            ? 'Clear the search to change the order products show in the shop.'
+            : 'The shop shows products in this order. Drag a row by its handle, or use the arrows, to move it up or down.'}
+        </p>
+      )}
 
       {loading && <p className="muted">Loading…</p>}
       {error && <p className="error">{error}</p>}
@@ -83,6 +118,7 @@ export default function AdminProducts() {
           <table className="table">
             <thead>
               <tr>
+                {!q && <th>Order</th>}
                 <th></th>
                 <th>Name</th>
                 <th>Price</th>
@@ -92,10 +128,52 @@ export default function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((p) => {
+              {visible.map((p, index) => {
                 const total = totalStock(p.product_sizes);
                 return (
-                  <tr key={p.id}>
+                  <tr
+                    key={p.id}
+                    className={[dragId === p.id ? 'dragging' : '', overId === p.id && dragId !== p.id ? 'drop-target' : ''].join(' ').trim() || undefined}
+                    onDragOver={(e) => {
+                      if (!dragId) return;
+                      e.preventDefault();
+                      if (overId !== p.id) setOverId(p.id);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      drop(p.id);
+                    }}
+                  >
+                    {!q && (
+                      <td className="order-cell">
+                        <span
+                          className="drag-handle"
+                          draggable
+                          title="Drag to move"
+                          aria-hidden="true"
+                          onDragStart={(e) => {
+                            setDragId(p.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            const row = e.currentTarget.closest('tr');
+                            if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                          }}
+                          onDragEnd={() => {
+                            setDragId(null);
+                            setOverId(null);
+                          }}
+                        >
+                          ⋮⋮
+                        </span>
+                        <span className="order-arrows">
+                          <button type="button" className="order-btn" aria-label={`Move ${p.name} up`} disabled={index === 0} onClick={() => move(index, index - 1)}>
+                            ▲
+                          </button>
+                          <button type="button" className="order-btn" aria-label={`Move ${p.name} down`} disabled={index === visible.length - 1} onClick={() => move(index, index + 1)}>
+                            ▼
+                          </button>
+                        </span>
+                      </td>
+                    )}
                     <td>{p.images[0] ? <img src={p.images[0]} alt="" /> : <div className="img-placeholder" style={{ width: 44, height: 55 }} />}</td>
                     <td>
                       <Link to={`/admin/products/${p.id}`}>
