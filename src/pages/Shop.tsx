@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Logo from '../components/Logo';
-import ProductCard, { isSoldOut } from '../components/ProductCard';
+import ProductCard from '../components/ProductCard';
 import Reveal from '../components/Reveal';
 import { CATEGORIES, priceBands } from '../lib/catalog';
 import { formatPrice } from '../lib/format';
@@ -22,8 +22,7 @@ function sortProducts(list: Product[], sort: Sort): Product[] {
   if (sort === 'price-asc') out.sort((a, b) => a.price - b.price);
   if (sort === 'price-desc') out.sort((a, b) => b.price - a.price);
   if (sort === 'newest') out.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  // Featured keeps the admin's order but moves sold-out items to the end.
-  if (sort === 'featured') out.sort((a, b) => Number(isSoldOut(a)) - Number(isSoldOut(b)));
+  // Featured is exactly the order the admin set in Admin → Products.
   return out;
 }
 
