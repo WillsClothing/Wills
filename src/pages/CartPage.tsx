@@ -85,7 +85,9 @@ export default function CartPage() {
                     </div>
                     {!loading && !item.orderable && (
                       <div className="small error">
-                        {item.available === 0
+                        {!item.size.trim() || (item.product?.colors.length && !item.color)
+                          ? 'Size or colour missing. Please remove this item and add it again from the product page.'
+                          : item.available === 0
                           ? 'Out of stock. Please remove this item.'
                           : `Only ${item.available} available. Please lower the quantity.`}
                       </div>
@@ -218,7 +220,7 @@ export default function CartPage() {
           </div>
 
           {problems.length > 0 && (
-            <p className="small error">Some items are no longer available in that quantity. Please update your cart.</p>
+            <p className="small error">Some items need fixing before you can order (size missing or not enough stock). Please update your cart.</p>
           )}
           {!hasNumber && <p className="small error">Online ordering is not set up yet. Please check back soon.</p>}
 

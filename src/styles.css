@@ -854,3 +854,22 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .bot-chart strong, .bot-offer > strong { font-family: var(--serif); font-size: 1.05rem; font-weight: 500; }
 .bot-chart .size-guide-table table { font-size: 0.78rem; }
 .bot-chart .size-guide-table th, .bot-chart .size-guide-table td { padding: 6px 4px; }
+
+/* ---------- Offer claim: size per piece ---------- */
+.claim-backdrop { z-index: 110; }
+.modal.claim-sheet { position: relative; max-width: 520px; max-height: calc(100vh - 32px); overflow-y: auto; text-align: left; }
+.claim-sheet h2 { margin-right: 40px; }
+.claim-sheet .offer-pop-close { background: var(--black); }
+.claim-sheet > .small { margin: 0 0 18px; }
+.claim-piece { display: grid; gap: 12px; padding: 14px 0; border-top: 1px solid var(--gray-200); }
+.claim-piece.flag { box-shadow: inset 3px 0 0 #b3261e; padding-left: 12px; }
+.claim-piece input { min-height: 44px; }
+.claim-piece-head { display: flex; align-items: center; gap: 12px; }
+.claim-piece-head img { width: 48px; height: 60px; object-fit: cover; }
+.claim-piece-head div { display: grid; gap: 2px; }
+.claim-piece .color-pick button { width: 34px; height: 34px; }
+.claim-hint { margin: 0; }
+.claim-error { color: #b3261e; font-size: 0.85rem; margin: 6px 0 0; }
+.claim-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--gray-200); padding: 14px 0; margin-top: 4px; }
+.claim-total strong { font-size: 1.15rem; }
+.claim-sheet .btn[aria-disabled='true'] { opacity: 0.6; }
