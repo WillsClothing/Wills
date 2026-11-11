@@ -102,11 +102,15 @@ export function resolveCart(items: CartItem[], products: Product[]): ResolvedCar
     // Stock is per size, so other colours of the same size share it.
     const others = sizeInCart(items, item.sizeId) - item.quantity;
     const available = product?.status === 'available' && size ? Math.max(0, size.stock - others) : 0;
+    // A line can only be ordered with a size (and a colour when the product has colours).
+    const hasSize = Boolean(size?.size.trim());
+    const hasColor = !product?.colors.length || Boolean(item.color);
     return {
       ...item,
+      size: size?.size ?? item.size,
       product,
       available,
-      orderable: available >= item.quantity && item.quantity > 0,
+      orderable: hasSize && hasColor && available >= item.quantity && item.quantity > 0,
       lineTotal: (product?.price ?? 0) * item.quantity,
     };
   });
