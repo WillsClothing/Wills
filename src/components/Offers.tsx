@@ -39,7 +39,8 @@ function OfferMedia({ pictures, title, save }: { pictures: string[]; title: stri
 const OPEN_EVENT = 'wills:open-offers';
 export const openOffers = () => window.dispatchEvent(new Event(OPEN_EVENT));
 const CLAIM_EVENT = 'wills:claim-offer';
-const openClaim = (id: string) => window.dispatchEvent(new CustomEvent<string>(CLAIM_EVENT, { detail: id }));
+/** Opens the size picker for an offer (used by the offer cards and Wills bot). */
+export const openClaim = (id: string) => window.dispatchEvent(new CustomEvent<string>(CLAIM_EVENT, { detail: id }));
 
 function DrawerCard({ promo, products }: { promo: Promotion; products: Product[] }) {
   const o = useOffer(promo, products);

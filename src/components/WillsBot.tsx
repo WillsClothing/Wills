@@ -6,7 +6,7 @@ import { useStore } from '../lib/store';
 import type { Product, Promotion, SizeChart } from '../lib/types';
 import { whatsappLink } from '../lib/whatsapp';
 import Logo from './Logo';
-import { openOffers } from './Offers';
+import { openClaim, openOffers } from './Offers';
 import { SOCIALS } from './Socials';
 
 // "Wills bot": a guided shopping assistant that runs entirely in the browser.
@@ -211,7 +211,7 @@ export default function WillsBot() {
   function howToOrder() {
     say(
       <ol className="bot-list">
-        <li>Open a product, pick your colour, size and quantity, then press <strong>Add to cart</strong> (or <strong>Buy it now</strong>).</li>
+        <li>Open a product, pick your colour, size and quantity, then press <strong>Add to cart</strong> (or <strong>Buy it now</strong>). A size is required for every item.</li>
         <li>In the cart, enter your name, phone and delivery address.</li>
         <li>Choose <strong>Cash on Delivery</strong> or <strong>Bank transfer</strong>.</li>
         <li>Press <strong>Order on WhatsApp</strong>. Your full order is sent to us and we confirm it there.</li>
@@ -219,7 +219,23 @@ export default function WillsBot() {
       800,
     );
     say(`No online payment is needed, and nothing is reserved until we confirm on WhatsApp. Delivery is free island wide and takes ${DELIVERY_DAYS}.`, 500);
+    if (promotions.length) say('For an offer, press Claim offer, choose a size (and colour) for each item, then Order on WhatsApp.', 400);
     anythingElse();
+  }
+
+  function sizeRequired() {
+    say(
+      <>
+        A size is needed for every order. You can't add an item to the cart or claim an offer until you pick a size
+        {products.some((p) => p.colors.length) ? ' (and colour, where there is a choice)' : ''}, and we include it in your
+        WhatsApp message so we pack the right one.
+      </>,
+    );
+    say('Not sure which size fits you?', 400);
+    offer([
+      { label: 'Size guide', run: sizeHelp },
+      { label: 'How to order', run: howToOrder },
+    ]);
   }
 
   function payment() {
@@ -288,7 +304,13 @@ export default function WillsBot() {
       return socials();
     }
     say(promotions.length === 1 ? 'There is one offer on right now:' : `There are ${promotions.length} offers on right now:`);
-    for (const promo of promotions.slice(0, 4)) say(<OfferTile promo={promo} products={products} currency={c} />, 300);
+    const claim = (id: string) => {
+      setOpen(false);
+      openClaim(id);
+    };
+    for (const promo of promotions.slice(0, 4))
+      say(<OfferTile promo={promo} products={products} currency={c} onClaim={settings.whatsapp_number ? () => claim(promo.id) : undefined} />, 300);
+    say("Pressing Claim offer asks for a size for each item before it opens WhatsApp.", 200);
     say(
       <button
         type="button"
@@ -431,6 +453,7 @@ export default function WillsBot() {
 
   const INTENTS: [RegExp, () => void][] = [
     [/\b(hi|hello|hey|salam|ayubowan)\b/, () => (say('Hello! How can I help you today?'), offer(menuOptions()))],
+    [/\b(without (a |any )?size|no size|size (is )?(needed|required|mandatory|compulsory|a must))\b/, sizeRequired],
     [/\b(offers?|deals?|discounts?|promo\w*|combos?|sale)\b/, offers],
     [/\b(insta\w*|facebook|fb|social|follow|tiktok)\b/, socials],
     [/\b(invoice|receipt|bill)\b/, invoice],
@@ -620,7 +643,7 @@ function ProductTile({ product: initial, size, colour, onView }: { product: Prod
             </button>
           )}
           <button type="button" className="btn btn-sm btn-outline" onClick={view}>
-            {product.colors.length && open.length && !pick ? 'Choose colour' : 'View'}
+            {!open.length || pick ? 'View' : product.colors.length && !colourName ? 'Choose colour' : 'Choose size'}
           </button>
         </div>
         {note && <span className="small bot-note">{note}</span>}
@@ -665,7 +688,7 @@ function ChartCard({ name, chart }: { name: string; chart: SizeChart }) {
 }
 
 /** One live offer in the chat, with what it includes and the saving. */
-function OfferTile({ promo, products, currency }: { promo: Promotion; products: Product[]; currency: string }) {
+function OfferTile({ promo, products, currency, onClaim }: { promo: Promotion; products: Product[]; currency: string; onClaim?: () => void }) {
   const items = promo.product_ids.map((id) => products.find((p) => p.id === id)).filter((p): p is Product => !!p);
   const lines = [...new Set(items)].map((p) => {
     const n = items.filter((x) => x === p).length;
@@ -687,6 +710,11 @@ function OfferTile({ promo, products, currency }: { promo: Promotion; products: 
           </s>
         )}
       </span>
+      {onClaim && (
+        <button type="button" className="btn btn-sm btn-gold" style={{ justifySelf: 'start', marginTop: 4 }} onClick={onClaim}>
+          Claim offer
+        </button>
+      )}
     </div>
   );
 }
