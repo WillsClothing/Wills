@@ -44,6 +44,73 @@ function inStock(p: Product): boolean {
 /** Delivery promise shown across the shop. */
 const DELIVERY_DAYS = '3 to 4 working days';
 
+/**
+ * Brand Q&A: fixed replies about who Wills is. Wording comes straight from the
+ * brand team, so edit the text here rather than rephrasing it in code.
+ * Checked in order, before stock and product search, and the first match wins,
+ * so the more specific questions ("what's the Wills lifestyle?") sit above the
+ * general ones ("what is Wills?").
+ */
+const BRAND_QA: { re: RegExp; reply: string; showLatest?: boolean }[] = [
+  // Fun replies
+  {
+    re: /\b((are|r) (you|u)|are your (clothes|prices|items|products)|is (wills|it|this|everything)|you guys|too|so|very) (too |so |very |really )?(expensive|pricey|costly)\b/,
+    reply: "Expensive brand names aren't our thing. Quality is. 😉",
+  },
+  {
+    re: /\b(trend\w*|what'?s (hot|popular|in)|popular right now|in style|in fashion|best ?sell\w*)\b/,
+    reply: 'Comfort is always trending. Check out our latest collection!',
+    showLatest: true,
+  },
+  {
+    re: /\b(need|buy|get)\b.*\b(another|one more|more|new)\b.*\b(t-?shirts?|tees?|shirts?|shorts|clothes)\b/,
+    reply: "Your wardrobe called. It said it's time for Wills! 😂",
+  },
+  {
+    re: /\b(life ?style|vibe|way of life|philosophy)\b/,
+    reply: 'Keep it simple. Stay comfortable. Look confident.',
+  },
+  {
+    re: /\b(why|should i|can i|do i) (wait|hold off)\b/,
+    reply: 'Right Time. Right Now. Go get your favourite fit!',
+  },
+  // Brand personality
+  {
+    re: /\b(slogan|tag ?line|motto|catch ?phrase)\b/,
+    reply: "Right Time. Right Now. Don't wait to upgrade your style!",
+  },
+  {
+    re: /\b(premium|luxury|high[- ]end)\b/,
+    reply: "We believe premium quality doesn't always need a premium price tag.",
+  },
+  {
+    re: /\b(different|unique|special about|stand out|why (choose|pick|buy from|shop (at|with)) (wills|you))\b/,
+    reply: 'We focus on what really matters: quality fabric, comfortable fits and affordable pricing.',
+  },
+  // Quality, pricing and trust
+  {
+    re: /\b(trust\w*|legit\w*|reliable|genuine|scam|safe to (buy|order))\b/,
+    reply: 'We want every customer to experience the quality, comfort and style that Wills stands for.',
+  },
+  {
+    re: /\b(affordab\w*|why (are|is) (your |the )?(prices?|clothes|it|everything) (so )?(low|cheap|reasonable))\b/,
+    reply: 'Because we want you to pay for the quality of the clothing, not just the brand name.',
+  },
+  {
+    re: /\b(fabric|material|cotton|quality|good quality|cloth quality)\b/,
+    reply: 'We focus on comfortable, quality fabrics designed for everyday wear.',
+  },
+  {
+    re: /\b(easy|simple|hard|difficult|complicated)\b.*\b(order\w*|buy\w*|shop\w*|purchas\w*)\b|\b(order\w*|buy\w*|shop\w*|purchas\w*)\b.*\b(easy|simple|hard|difficult|complicated)\b/,
+    reply: 'Absolutely! Browse our collection, choose your favourite item and place your order through our website.',
+  },
+  {
+    re: /\b(what('?s| is)|whats|who (is|are)|tell me about|about) (wills( clothing)?|you|your brand|this brand)\b/,
+    reply:
+      'Wills is all about quality, comfort and effortless style. We believe everyone deserves premium-feeling clothing without paying extra just for a brand name.',
+  },
+];
+
 /** A size the customer typed: "XL", "size m", "in L" or "free size". Single letters only count in capitals or after "size". */
 function sizeIn(original: string): string | undefined {
   if (/free\s*size/i.test(original)) return 'Free size';
@@ -393,6 +460,15 @@ export default function WillsBot() {
     anythingElse();
   }
 
+  function brandReply(reply: string, showLatest?: boolean) {
+    say(reply);
+    if (showLatest && available.length) {
+      const fresh = [...available].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 3);
+      for (const p of fresh) say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+    }
+    anythingElse();
+  }
+
   // ------------------------------------------------- stock by colour and size
 
   function colorHasStock(p: Product, colour: string): boolean {
@@ -496,6 +572,9 @@ export default function WillsBot() {
     setOptions([]);
     push('user', q);
     const lower = q.toLowerCase();
+    // Brand questions ("Are you expensive?", "What's your slogan?") have fixed replies.
+    const brand = BRAND_QA.find(({ re }) => re.test(lower));
+    if (brand) return brandReply(brand.reply, brand.showLatest);
     // "Black tee in L?" is answered from live stock first.
     if (stockCheck(q, lower)) return;
     // Questions (payment, delivery…) win; otherwise look for matching products first.
