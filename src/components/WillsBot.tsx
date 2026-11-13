@@ -8,6 +8,7 @@ import { whatsappLink } from '../lib/whatsapp';
 import Logo from './Logo';
 import { openClaim, openOffers } from './Offers';
 import { SOCIALS } from './Socials';
+import { refersBack, SOCIAL, understand, type IntentId } from '../lib/botBrain';
 
 // "Wills bot": a guided shopping assistant that runs entirely in the browser.
 // It only reads the live catalogue and can add items to the cart; like the rest
@@ -142,6 +143,10 @@ export default function WillsBot() {
   const nextId = useRef(1);
   const logRef = useRef<HTMLDivElement>(null);
   const queue = useRef(Promise.resolve());
+  /** The products shown most recently, so "how much is it?" or "in XL?" can refer back to them. */
+  const lastShown = useRef<Product[]>([]);
+  /** While answering several questions from one message, ask "Anything else?" once at the end. */
+  const batch = useRef<{ pending: boolean } | null>(null);
 
   const available = useMemo(() => products.filter(inStock), [products]);
   const c = settings.currency;
@@ -198,6 +203,10 @@ export default function WillsBot() {
   }
 
   function anythingElse() {
+    if (batch.current) {
+      batch.current.pending = true;
+      return;
+    }
     say('Anything else I can help with?', 500);
     offer(menuOptions());
   }
@@ -210,8 +219,13 @@ export default function WillsBot() {
       </>,
       400,
     );
-    say('What would you like to do?', 500);
+    say('Type a question in your own words, or pick one of these:', 500);
     offer(menuOptions());
+  }
+
+  function showTiles(list: Product[], size?: string, colour?: string) {
+    if (list.length) lastShown.current = list;
+    for (const p of list) say(<ProductTile product={p} size={size} colour={colour} onView={() => setOpen(false)} />, 250);
   }
 
   // -------------------------------------------------------------- finder
@@ -269,7 +283,7 @@ export default function WillsBot() {
       return;
     }
     say(found.length === 1 ? 'Here is what I found:' : `Here are ${found.length} picks for you:`, 700);
-    for (const p of found) say(<ProductTile product={p} size={f.size} onView={() => setOpen(false)} />, 250);
+    showTiles(found, f.size);
     anythingElse();
   }
 
@@ -361,7 +375,7 @@ export default function WillsBot() {
     const chart = p.size_chart!;
     say(<ChartCard name={p.name} chart={chart} />, 700);
     if (chart.note) say(chart.note, 400);
-    say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+    showTiles([p]);
     anythingElse();
   }
 
@@ -448,7 +462,7 @@ export default function WillsBot() {
     const lo = sorted[0].price;
     const hi = sorted[sorted.length - 1].price;
     say(lo === hi ? `Everything in stock is ${formatPrice(lo, c)}, with free delivery.` : `Prices run from ${formatPrice(lo, c)} to ${formatPrice(hi, c)}, with free delivery. Here are the best value picks:`);
-    for (const p of sorted.slice(0, 3)) say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+    showTiles(sorted.slice(0, 3));
     anythingElse();
   }
 
@@ -456,7 +470,7 @@ export default function WillsBot() {
     if (!available.length) return startFinder();
     const fresh = [...available].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 3);
     say('Our newest pieces:');
-    for (const p of fresh) say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+    showTiles(fresh);
     anythingElse();
   }
 
@@ -464,7 +478,7 @@ export default function WillsBot() {
     say(reply);
     if (showLatest && available.length) {
       const fresh = [...available].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 3);
-      for (const p of fresh) say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+      showTiles(fresh);
     }
     anythingElse();
   }
@@ -486,15 +500,25 @@ export default function WillsBot() {
     // Narrow by product words (name / type) if any were given.
     const rest = lower.replace(colour?.toLowerCase() ?? '\u0000', ' ');
     const named = search(rest);
-    const pool = (named.length ? named : products).filter((p) => p.status === 'available');
-
-    const hits = pool.filter((p) => {
+    const live = (list: Product[]) => list.filter((p) => p.status === 'available');
+    const fits = (p: Product) => {
       if (colour && !p.colors.some((col) => col.name.toLowerCase() === colour.toLowerCase())) return false;
       const perColor = p.product_sizes.some((v) => v.color);
       return p.product_sizes.some(
         (v) => v.stock > 0 && (!size || sameSize(v.size, size)) && (!colour || !perColor || v.color.toLowerCase() === colour.toLowerCase()),
       );
-    });
+    };
+    // "What about XL?" right after showing a product means that product; fall back to the whole shop.
+    const recent = !named.length ? live(lastShown.current) : [];
+    let pool = live(named.length ? named : products);
+    let hits = pool.filter(fits);
+    if (recent.length) {
+      const recentHits = recent.filter(fits);
+      if (recentHits.length || refersBack(lower)) {
+        pool = recent;
+        hits = recentHits;
+      }
+    }
     const want = [colour, size && `size ${size}`].filter(Boolean).join(', ');
     if (!hits.length) {
       say(`Sorry, nothing is in stock in ${want} right now.`);
@@ -514,7 +538,7 @@ export default function WillsBot() {
       return true;
     }
     say(hits.length === 1 ? `Yes, this is in stock in ${want}:` : `Yes, these are in stock in ${want}:`, 600);
-    for (const p of hits.slice(0, 4)) say(<ProductTile product={p} size={size} colour={colour} onView={() => setOpen(false)} />, 250);
+    showTiles(hits.slice(0, 4), size, colour);
     anythingElse();
     return true;
   }
@@ -525,26 +549,107 @@ export default function WillsBot() {
     anythingElse();
   }
 
+  // ----------------------------------------------------------- small talk
+
+  function hello(text: string) {
+    const part = text.match(/\bgood (morning|afternoon|evening)\b/)?.[1];
+    say(part ? `Good ${part}! 👋` : 'Hi there! 👋', 400);
+  }
+
+  function aboutBot() {
+    say(
+      <>
+        I'm <strong>Wills bot</strong>, the shop's helper. Ask me in your own words, for example <em>"black tee in L?"</em>,{' '}
+        <em>"how much is delivery to Kandy?"</em> or <em>"can I pay cash?"</em>. For anything I can't answer, our team is on WhatsApp.
+      </>,
+    );
+    anythingElse();
+  }
+
+  function shopInfo() {
+    say(`You can order any time on our website, and we deliver free island wide in ${DELIVERY_DAYS}. For shop visits or our location, ask our team on WhatsApp.`);
+    say(<WaButton show={Boolean(settings.whatsapp_number)} href={wa(`Hi ${settings.store_name}! Where are you located?`)} label="Ask on WhatsApp" />, 300);
+    anythingElse();
+  }
+
+  /** "How much is it?" right after a product was shown. */
+  function priceOfShown() {
+    const list = lastShown.current.slice(0, 3);
+    say(
+      list.length === 1
+        ? `${list[0].name} is ${formatPrice(list[0].price, c)}, with free island wide delivery.`
+        : list.map((p) => `${p.name}: ${formatPrice(p.price, c)}`).join(' · ') + '. Delivery is free island wide.',
+    );
+    anythingElse();
+  }
+
+  /** "What colours does it come in?" right after a product was shown. */
+  function coloursOfShown() {
+    const p = lastShown.current[0];
+    const inStockColours = p.colors.map((col) => col.name).filter((n) => colorHasStock(p, n));
+    say(
+      inStockColours.length
+        ? `${p.name} is in stock in ${inStockColours.join(', ')}.`
+        : `${p.name} comes in one colour. Open it to see the sizes in stock.`,
+    );
+    anythingElse();
+  }
+
   // ----------------------------------------------------------- free text
 
-  const INTENTS: [RegExp, () => void][] = [
-    [/\b(hi|hello|hey|salam|ayubowan)\b/, () => (say('Hello! How can I help you today?'), offer(menuOptions()))],
-    [/\b(without (a |any )?size|no size|size (is )?(needed|required|mandatory|compulsory|a must))\b/, sizeRequired],
-    [/\b(offers?|deals?|discounts?|promo\w*|combos?|sale)\b/, offers],
-    [/\b(insta\w*|facebook|fb|social|follow|tiktok)\b/, socials],
-    [/\b(invoice|receipt|bill)\b/, invoice],
-    [/\b(track\w*|where is my|status of my|order status)\b/, track],
-    [/\b(return\w*|exchange\w*|refund\w*|wrong size|damaged)\b/, exchanges],
-    [/\b(how long|when will|arrive|days|deliver\w*|shipping|ship|courier|free delivery)\b/, delivery],
-    [/\b(pay|payment|cash|cod|bank|transfer|card)\b/, payment],
-    [/\b(size chart|size guide|sizing|measure\w*|fit|chest|waist)\b/, sizeHelp],
-    [/\b(colou?rs?|shades?)\b/, colours],
-    [/\b(cheap\w*|price\w*|cost|how much|budget|expensive)\b/, prices],
-    [/\b(new|latest|arrivals?|drop)\b/, newest],
-    [/\b(order|buy|checkout|purchase)\b/, howToOrder],
-    [/\b(human|person|agent|contact|whatsapp|call|talk)\b/, human],
-    [/\b(find|recommend|suggest|outfit|looking for)\b/, startFinder],
-  ];
+  const HANDLERS: Record<IntentId, (text: string) => void> = {
+    greet: hello,
+    thanks: () => say(['Happy to help! 😊', "You're welcome! 😊", 'Anytime! 😊'][Math.floor(Math.random() * 3)], 400),
+    bye: () => say('Thanks for stopping by. Right Time. Right Now. See you soon! 👋', 400),
+    howAreYou: () => say("I'm great, thanks for asking! Ready to help you find your next favourite fit.", 400),
+    compliment: () => say('Thank you, that made my day! 😊', 400),
+    laugh: () => say('😄', 300),
+    yes: () => (say('Great! What would you like to do?', 400), offer(menuOptions())),
+    no: () => say('No problem. Happy shopping! 🛍️', 400),
+    botSelf: aboutBot,
+    sizeRequired,
+    offers,
+    socials,
+    invoice,
+    track,
+    exchanges,
+    delivery,
+    payment,
+    sizeHelp: (text) => {
+      const p = lastShown.current[0];
+      if (p && refersBack(text) && p.size_chart && (p.size_chart.rows.length || p.size_chart.image)) return showChart(p);
+      sizeHelp();
+    },
+    colours: (text) => (lastShown.current.length && refersBack(text) ? coloursOfShown() : colours()),
+    prices: (text) => (lastShown.current.length && refersBack(text) ? priceOfShown() : prices()),
+    newest,
+    order: howToOrder,
+    human,
+    finder: startFinder,
+    shop: shopInfo,
+  };
+
+  /** Topics that should give way to a product search when the message also names a product. */
+  const SOFT: IntentId[] = ['finder', 'colours', 'prices', 'newest'];
+
+  const MAYBE_LABELS: Partial<Record<IntentId, string>> = {
+    offers: 'Offers',
+    delivery: 'Delivery',
+    payment: 'Payment options',
+    sizeHelp: 'Size guide',
+    order: 'How do I order?',
+    track: 'Track my order',
+    exchanges: 'Exchanges',
+    prices: 'Prices',
+    newest: 'New arrivals',
+    colours: 'Colours',
+    finder: 'Find an outfit',
+    human: 'Talk to a person',
+    socials: 'Follow us',
+    shop: 'Where are you?',
+    invoice: 'Invoices',
+    sizeRequired: 'Is a size needed?',
+  };
 
   function search(q: string): Product[] {
     const words = q
@@ -564,6 +669,33 @@ export default function WillsBot() {
       .map((r) => r.p);
   }
 
+  /** Words from the live catalogue, so typos like "hodie" or "blak" are corrected towards them. */
+  const catalogueWords = useMemo(
+    () => [
+      ...new Set(
+        products.flatMap((p) => `${p.name} ${p.category} ${p.colors.map((col) => col.name).join(' ')}`.toLowerCase().split(/[^a-z-]+/)),
+      ),
+    ],
+    [products],
+  );
+
+  const catalogueColours = useMemo(
+    () => [...new Set(products.flatMap((p) => p.colors.map((col) => col.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))))],
+    [products],
+  );
+
+  /** "Do you sell jeans?" with nothing matching: say so, then show what we do have. */
+  function notStocked(clean: string): boolean {
+    // "Do you sell jeans?" with nothing matching: say so, then show what we do have.
+    const asked = clean.match(/\b(?:do you (?:have|sell|got)|any|looking for|i want|i need) (?:an? |some |any )?([a-z-]{3,})\b/)?.[1];
+    if (asked && !STOP_WORDS.has(asked) && !/^(something|anything|stuff|clothes|clothing|items?|products?|things?|help|more|new|other|nice|good|cheap|to|it|one)$/.test(asked)) {
+      say(`I couldn't find ${asked} in the shop right now.`);
+      startFinder();
+      return true;
+    }
+    return false;
+  }
+
   function onSend(e: FormEvent) {
     e.preventDefault();
     const q = text.trim();
@@ -571,23 +703,62 @@ export default function WillsBot() {
     setText('');
     setOptions([]);
     push('user', q);
+    answer(q);
+  }
+
+  function answer(q: string) {
     const lower = q.toLowerCase();
+    const { text: clean, intents, maybe } = understand(q, catalogueWords);
+    const real = intents.filter((i) => !SOCIAL.has(i));
+
     // Brand questions ("Are you expensive?", "What's your slogan?") have fixed replies.
-    const brand = BRAND_QA.find(({ re }) => re.test(lower));
-    if (brand) return brandReply(brand.reply, brand.showLatest);
-    // "Black tee in L?" is answered from live stock first.
-    if (stockCheck(q, lower)) return;
-    // Questions (payment, delivery…) win; otherwise look for matching products first.
-    const intent = INTENTS.find(([re]) => re.test(lower));
-    if (intent && ![startFinder, colours, prices, newest].includes(intent[1])) return intent[1]();
-    const found = search(lower);
+    const brand = BRAND_QA.find(({ re }) => re.test(clean) || re.test(lower));
+    if (brand) {
+      if (intents.includes('greet')) hello(clean);
+      return brandReply(brand.reply, brand.showLatest);
+    }
+
+    // "Black tee in L?" or "what about XL?" is answered from live stock.
+    if (!real.some((i) => !SOFT.includes(i))) {
+      // stockCheck says nothing when the message has no colour or size, so greet only when it will answer.
+      const hasColourOrSize = Boolean(sizeIn(q)) || catalogueColours.some((n) => new RegExp(`\\b${n}\\b`).test(clean));
+      if (hasColourOrSize && intents.includes('greet')) hello(clean);
+      if (stockCheck(q, clean)) return;
+    }
+
+    // Every topic in the message gets an answer ("delivery and payment?" → both), then one "Anything else?".
+    const hard = real.filter((i) => !SOFT.includes(i));
+    const found = hard.length ? [] : search(clean).length ? search(clean) : search(lower);
+    const run = intents.filter((i) => SOCIAL.has(i) || hard.includes(i) || (!found.length && real.includes(i)));
     if (found.length) {
+      for (const i of intents.filter((x) => SOCIAL.has(x))) HANDLERS[i](clean);
       say(found.length === 1 ? 'I found this:' : 'I found these:', 600);
-      for (const p of found) say(<ProductTile product={p} onView={() => setOpen(false)} />, 250);
+      showTiles(found);
       return anythingElse();
     }
-    if (intent) return intent[1]();
-    say("Sorry, I didn't catch that. Pick one of these, or ask our team on WhatsApp.");
+    if (!found.length && !hard.length && (!real.length || real.every((i) => i === 'finder')) && notStocked(clean)) return;
+    if (run.length) {
+      const onlySocial = run.every((i) => SOCIAL.has(i));
+      batch.current = { pending: false };
+      for (const i of run) HANDLERS[i](clean);
+      const pending = batch.current.pending;
+      batch.current = null;
+      if (pending) anythingElse();
+      else if (onlySocial && !run.some((i) => ['bye', 'no', 'yes'].includes(i))) {
+        say(run.includes('greet') ? 'How can I help you today?' : 'Anything I can help you with?', 500);
+        offer(menuOptions());
+      }
+      return;
+    }
+
+    // Not sure: offer the closest topics.
+    const guesses = maybe.filter((i) => MAYBE_LABELS[i]).slice(0, 3);
+    if (guesses.length) {
+      say('Did you mean one of these?');
+      offer([...guesses.map((i) => ({ label: MAYBE_LABELS[i]!, run: () => HANDLERS[i](clean) })), { label: 'Talk to a person', run: human }]);
+      return;
+    }
+    say("Sorry, I didn't catch that. Try asking another way, like \"do you deliver to Kandy?\", or pick one of these.");
     offer(menuOptions());
   }
 
