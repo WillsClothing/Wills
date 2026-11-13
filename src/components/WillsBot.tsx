@@ -52,65 +52,95 @@ const DELIVERY_DAYS = '3 to 4 working days';
  * so the more specific questions ("what's the Wills lifestyle?") sit above the
  * general ones ("what is Wills?").
  */
-const BRAND_QA: { re: RegExp; reply: string; showLatest?: boolean }[] = [
+const BRAND_QA: { q: string; re: RegExp; reply: string; showLatest?: boolean }[] = [
   // Fun replies
   {
     re: /\b((are|r) (you|u)|are your (clothes|prices|items|products)|is (wills|it|this|everything)|you guys|too|so|very) (too |so |very |really )?(expensive|pricey|costly)\b/,
+    q: 'Are you expensive?',
     reply: "Expensive brand names aren't our thing. Quality is. 😉",
   },
   {
     re: /\b(trend\w*|what'?s (hot|popular|in)|popular right now|in style|in fashion|best ?sell\w*)\b/,
+    q: "What's trending?",
     reply: 'Comfort is always trending. Check out our latest collection!',
     showLatest: true,
   },
   {
     re: /\b(need|buy|get)\b.*\b(another|one more|more|new)\b.*\b(t-?shirts?|tees?|shirts?|shorts|clothes)\b/,
+    q: 'Do I really need another T-shirt?',
     reply: "Your wardrobe called. It said it's time for Wills! 😂",
   },
   {
     re: /\b(life ?style|vibe|way of life|philosophy)\b/,
+    q: "What's the Wills lifestyle?",
     reply: 'Keep it simple. Stay comfortable. Look confident.',
   },
   {
     re: /\b(why|should i|can i|do i) (wait|hold off)\b/,
+    q: 'Why wait?',
     reply: 'Right Time. Right Now. Go get your favourite fit!',
   },
   // Brand personality
   {
     re: /\b(slogan|tag ?line|motto|catch ?phrase)\b/,
+    q: "What's your slogan?",
     reply: "Right Time. Right Now. Don't wait to upgrade your style!",
   },
   {
     re: /\b(premium|luxury|high[- ]end)\b/,
+    q: 'Is Wills a premium brand?',
     reply: "We believe premium quality doesn't always need a premium price tag.",
   },
   {
     re: /\b(different|unique|special about|stand out|why (choose|pick|buy from|shop (at|with)) (wills|you))\b/,
+    q: 'What makes Wills different?',
     reply: 'We focus on what really matters: quality fabric, comfortable fits and affordable pricing.',
   },
   // Quality, pricing and trust
   {
     re: /\b(trust\w*|legit\w*|reliable|genuine|scam|safe to (buy|order))\b/,
+    q: 'Why should I trust Wills?',
     reply: 'We want every customer to experience the quality, comfort and style that Wills stands for.',
   },
   {
     re: /\b(affordab\w*|why (are|is) (your |the )?(prices?|clothes|it|everything) (so )?(low|cheap|reasonable))\b/,
+    q: 'Why are your prices affordable?',
     reply: 'Because we want you to pay for the quality of the clothing, not just the brand name.',
   },
   {
     re: /\b(fabric|material|cotton|quality|good quality|cloth quality)\b/,
+    q: 'Is your fabric good quality?',
     reply: 'We focus on comfortable, quality fabrics designed for everyday wear.',
   },
   {
     re: /\b(easy|simple|hard|difficult|complicated)\b.*\b(order\w*|buy\w*|shop\w*|purchas\w*)\b|\b(order\w*|buy\w*|shop\w*|purchas\w*)\b.*\b(easy|simple|hard|difficult|complicated)\b/,
+    q: 'Is online ordering easy?',
     reply: 'Absolutely! Browse our collection, choose your favourite item and place your order through our website.',
   },
   {
     re: /\b(what('?s| is)|whats|who (is|are)|tell me about|about) (wills( clothing)?|you|your brand|this brand)\b/,
+    q: 'What is Wills Clothing?',
     reply:
       'Wills is all about quality, comfort and effortless style. We believe everyone deserves premium-feeling clothing without paying extra just for a brand name.',
   },
 ];
+
+/** The order the questions are listed under "About Wills" (as the brand team wrote them). */
+const BRAND_MENU = [
+  'What is Wills Clothing?',
+  'What makes Wills different?',
+  "What's your slogan?",
+  'Is Wills a premium brand?',
+  'Is your fabric good quality?',
+  'Why are your prices affordable?',
+  'Is online ordering easy?',
+  'Why should I trust Wills?',
+  'Are you expensive?',
+  "What's trending?",
+  'Do I really need another T-shirt?',
+  "What's the Wills lifestyle?",
+  'Why wait?',
+].map((q) => BRAND_QA.find((b) => b.q === q)!);
 
 /** A size the customer typed: "XL", "size m", "in L" or "free size". Single letters only count in capitals or after "size". */
 function sizeIn(original: string): string | undefined {
@@ -197,8 +227,22 @@ export default function WillsBot() {
       { label: 'Delivery', run: delivery },
       { label: 'Payment options', run: payment },
       { label: 'Size guide', run: sizeHelp },
+      { label: 'About Wills', run: aboutWills },
       { label: 'Follow us', run: socials },
       { label: 'Talk to a person', run: human },
+    ];
+  }
+
+  /** Lists every brand question as a button. */
+  function aboutWills() {
+    say('Ask me anything about Wills. Tap a question:', 400);
+    offer(brandQuestionOptions());
+  }
+
+  function brandQuestionOptions(skip?: string): Option[] {
+    return [
+      ...BRAND_MENU.filter((b) => b.q !== skip).map((b) => ({ label: b.q, run: () => brandReply(b.reply, b.showLatest, b.q) })),
+      { label: 'Main menu', run: () => (say('What would you like to do?', 300), offer(menuOptions())) },
     ];
   }
 
@@ -219,7 +263,7 @@ export default function WillsBot() {
       </>,
       400,
     );
-    say('Type a question in your own words, or pick one of these:', 500);
+    say('Type a question in your own words, or pick one of these. Tap About Wills for questions about our brand.', 500);
     offer(menuOptions());
   }
 
@@ -474,13 +518,15 @@ export default function WillsBot() {
     anythingElse();
   }
 
-  function brandReply(reply: string, showLatest?: boolean) {
+  function brandReply(reply: string, showLatest?: boolean, asked?: string) {
     say(reply);
     if (showLatest && available.length) {
       const fresh = [...available].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 3);
       showTiles(fresh);
     }
-    anythingElse();
+    // Keep the other brand questions one tap away.
+    say('Anything else you want to know about Wills?', 500);
+    offer(brandQuestionOptions(asked));
   }
 
   // ------------------------------------------------- stock by colour and size
@@ -715,7 +761,7 @@ export default function WillsBot() {
     const brand = BRAND_QA.find(({ re }) => re.test(clean) || re.test(lower));
     if (brand) {
       if (intents.includes('greet')) hello(clean);
-      return brandReply(brand.reply, brand.showLatest);
+      return brandReply(brand.reply, brand.showLatest, brand.q);
     }
 
     // "Black tee in L?" or "what about XL?" is answered from live stock.
